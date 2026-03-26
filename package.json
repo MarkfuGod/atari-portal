@@ -1,0 +1,17 @@
+{
+  "name": "atari-portal",
+  "version": "1.0.0",
+  "description": "Atari Portal — retro game collection connected through portals",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "phaser": "^3.86.0"
+  },
+  "devDependencies": {
+    "vite": "^6.2.0"
+  }
+}
