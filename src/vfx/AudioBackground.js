@@ -814,6 +814,97 @@ void main() {
 }`;
 
 // ═══════════════════════════════════════════════════════════════════
+//  Shader 6 — Hyperspace Warp  (portal transition)
+//  Full-screen wormhole tunnel for dimensional travel
+// ═══════════════════════════════════════════════════════════════════
+
+const WARP_FRAG = /* glsl */ `
+precision highp float;
+
+uniform float iTime;
+uniform vec2  iResolution;
+uniform float warpProgress;
+uniform float bass;
+uniform float beatIntensity;
+
+float wHash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
+  float prog = clamp(warpProgress, 0.0, 1.0);
+
+  float speed = smoothstep(0.0, 0.2, prog) * smoothstep(1.0, 0.75, prog) * 12.0 + 0.5;
+
+  float a = atan(uv.y, uv.x);
+  float r = length(uv);
+
+  float z = 1.0 / (r + 0.06) + iTime * speed;
+  vec2 tUV = vec2(z * 0.12, a / 6.2832);
+
+  float s1 = sin(a * 5.0 + z * 0.35) * 0.5 + 0.5;
+  float s2 = sin(a * 3.0 - z * 0.2 + 1.5) * 0.5 + 0.5;
+  float s3 = sin(a * 8.0 + z * 0.5 - 2.0) * 0.5 + 0.5;
+
+  float stars = 0.0;
+  for (int layer = 0; layer < 4; layer++) {
+    float sc = 2.0 + float(layer) * 3.5;
+    vec2 st = tUV * sc;
+    vec2 id = floor(st);
+    vec2 f = fract(st) - 0.5;
+    float h = wHash(id + float(layer) * 73.0);
+    vec2 off = (vec2(h, fract(h * 127.1)) - 0.5) * 0.4;
+    float d = length(f - off);
+    float br = smoothstep(0.05 - float(layer) * 0.005, 0.0, d);
+    br *= 0.5 + 0.5 * sin(z * 0.3 + h * 80.0);
+    stars += br;
+  }
+
+  vec3 deepVoid    = vec3(0.02, 0.0, 0.08);
+  vec3 electricBlue = vec3(0.0, 0.35, 0.9);
+  vec3 hotMagenta  = vec3(0.85, 0.0, 0.55);
+  vec3 neonCyan    = vec3(0.0, 0.85, 0.75);
+  vec3 purpleGlow  = vec3(0.4, 0.0, 0.8);
+
+  vec3 col = mix(deepVoid, electricBlue, s1 * 0.8);
+  col = mix(col, hotMagenta, s2 * 0.35);
+  col = mix(col, neonCyan, s3 * 0.15);
+
+  float tBright = smoothstep(0.0, 0.12, r) * (1.0 - smoothstep(0.5, 0.95, r));
+  col *= tBright * 3.0;
+
+  col += stars * vec3(0.85, 0.92, 1.0) * 2.0;
+
+  float core = exp(-r * 12.0);
+  core *= 0.3 + 0.7 * pow(abs(sin(iTime * 6.0 + prog * 10.0)), 4.0);
+  col += core * vec3(1.0, 0.6, 1.0) * 2.0;
+
+  float sLines = pow(abs(sin(a * 50.0 + iTime * speed * 3.0)), 100.0);
+  sLines *= smoothstep(0.04, 0.25, r) * smoothstep(0.7, 0.35, r);
+  col += sLines * neonCyan * speed * 0.08;
+
+  float ring = exp(-abs(r - 0.65) * 20.0);
+  ring *= 0.5 + 0.5 * sin(a * 12.0 + iTime * 4.0);
+  col += ring * purpleGlow;
+
+  float ca = speed * 0.004 * r;
+  col.r *= 1.0 + ca;
+  col.b *= 1.0 - ca * 0.5;
+
+  float entryFlash = pow(max(0.0, 1.0 - prog * 6.0), 3.0);
+  col = mix(col, vec3(1.0, 0.85, 1.0), entryFlash);
+
+  float exitFlash = pow(max(0.0, (prog - 0.85) * 6.67), 3.0);
+  col = mix(col, vec3(1.0, 0.95, 1.0), exitFlash);
+
+  col += bass * vec3(0.08, 0.0, 0.12);
+  col += beatIntensity * purpleGlow * 0.4;
+
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// ═══════════════════════════════════════════════════════════════════
 
 const SCENE_MAP = {
   BootScene:      'synthwave',
@@ -918,7 +1009,18 @@ const AudioBackground = {
         fragmentShader: DJ_CONSOLE_FRAG,
         depthWrite: false, depthTest: false,
       }),
+      warp: new THREE.ShaderMaterial({
+        uniforms: {
+          ...makeUniforms(vw, vh, pr),
+          warpProgress: { value: 0 },
+        },
+        vertexShader:   VERT,
+        fragmentShader: WARP_FRAG,
+        depthWrite: false, depthTest: false,
+      }),
     };
+
+    this._materials.warp.uniforms.brightness.value = 1.0;
 
     this._materials.synthwave.uniforms.tint.value.set(0.04, 0.0, 0.06);
     this._materials.universe.uniforms.tint.value.set(0.0, 0.03, 0.07);
@@ -943,8 +1045,36 @@ const AudioBackground = {
 
   setScene(sceneName, mode) {
     if (!this._ready) return;
+    if (this._warpActive) return;
     const target = SCENE_MAP[sceneName] || (mode && MODE_BG[mode]) || 'universe';
     if (target === this._current) return;
+    this._current = target;
+    this._quad.material = this._materials[target];
+  },
+
+  startWarp(durationMs = 2800, onMidpoint, onComplete) {
+    if (!this._ready) {
+      if (onMidpoint) onMidpoint();
+      if (onComplete) onComplete();
+      return;
+    }
+    this._warpActive = true;
+    this._warpStart = this._clock.getElapsedTime();
+    this._warpDuration = durationMs / 1000;
+    this._warpMidCb = onMidpoint;
+    this._warpEndCb = onComplete;
+    this._warpMidFired = false;
+    this._preWarpTarget = this._current;
+    this._current = 'warp';
+    this._quad.material = this._materials.warp;
+    this._materials.warp.uniforms.warpProgress.value = 0;
+  },
+
+  stopWarp(targetScene, mode) {
+    this._warpActive = false;
+    const target = (targetScene && SCENE_MAP[targetScene])
+      || (mode && MODE_BG[mode])
+      || this._preWarpTarget || 'universe';
     this._current = target;
     this._quad.material = this._materials[target];
   },
@@ -967,6 +1097,23 @@ const AudioBackground = {
       u.beatIntensity.value = Math.min(1.0, ar.beatIntensity);
     }
     u.beatIntensity.value = Math.max(0, u.beatIntensity.value - 0.025);
+
+    if (this._warpActive) {
+      const elapsed = this._clock.getElapsedTime() - this._warpStart;
+      const progress = Math.min(1.0, elapsed / this._warpDuration);
+      this._materials.warp.uniforms.warpProgress.value = progress;
+
+      if (!this._warpMidFired && progress >= 0.4) {
+        this._warpMidFired = true;
+        if (this._warpMidCb) { this._warpMidCb(); this._warpMidCb = null; }
+      }
+      if (progress >= 1.0 && this._warpEndCb) {
+        const cb = this._warpEndCb;
+        this._warpEndCb = null;
+        this._warpActive = false;
+        cb();
+      }
+    }
 
     if (this._current === 'djconsole' && ar._connected && ar._freqData) {
       const fd = ar._freqData;
