@@ -89,9 +89,23 @@ const SFX = {
 
   portalEnter() {
     this.resume();
-    this._osc(800, 0.6, 'sine', 80, 0.3);
-    this._osc(600, 0.5, 'square', 40, 0.1, 0.05);
-    this._noise(0.5, 0.1, 0.1, 1500);
+    this._osc(800, 0.8, 'sine', 60, 0.35);
+    this._osc(600, 0.6, 'square', 40, 0.12, 0.05);
+    this._osc(200, 1.2, 'sine', 1200, 0.2, 0.15);
+    this._noise(0.7, 0.15, 0.1, 2000);
+    for (let i = 0; i < 4; i++) {
+      this._osc(400 + i * 200, 0.1, 'sine', 1000 + i * 300, 0.08, 0.2 + i * 0.1);
+    }
+  },
+
+  warpTravel() {
+    this.resume();
+    this._osc(80, 2.5, 'sine', 600, 0.2);
+    this._osc(120, 2.0, 'sawtooth', 800, 0.08, 0.3);
+    this._noise(2.0, 0.1, 0, 3000);
+    for (let i = 0; i < 6; i++) {
+      this._osc(200 + i * 150, 0.2, 'sine', 400 + i * 100, 0.04, 0.5 + i * 0.3);
+    }
   },
 
   // ── Common ──
