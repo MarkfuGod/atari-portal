@@ -66,6 +66,7 @@ export class BreakoutScene extends BaseGameScene {
       this.paddle.x = Phaser.Math.Clamp(px, half, GAME_WIDTH - half);
       if (this.ballOnPaddle) {
         this.ball.x = this.paddle.x;
+        this.ball.y = this.paddle.y - PADDLE_H / 2 - this.ball.displayHeight / 2;
       }
     });
 
@@ -100,7 +101,8 @@ export class BreakoutScene extends BaseGameScene {
   }
 
   createBall() {
-    this.ball = this.physics.add.image(GAME_WIDTH / 2, PADDLE_Y - 20, 'ball');
+    const ballOnPaddleY = PADDLE_Y - PADDLE_H / 2 - 8;
+    this.ball = this.physics.add.image(GAME_WIDTH / 2, ballOnPaddleY, 'ball');
     this.ball.setDisplaySize(16, 16);
     this.ball.setCollideWorldBounds(true);
     this.ball.setBounce(1);
@@ -222,7 +224,7 @@ export class BreakoutScene extends BaseGameScene {
 
   resetBallOnPaddle() {
     this.ballOnPaddle = true;
-    this.ball.setPosition(this.paddle.x, PADDLE_Y - 20);
+    this.ball.setPosition(this.paddle.x, PADDLE_Y - PADDLE_H / 2 - this.ball.displayHeight / 2);
     this.ball.body.setVelocity(0);
   }
 
@@ -261,6 +263,7 @@ export class BreakoutScene extends BaseGameScene {
 
     if (this.ballOnPaddle) {
       this.ball.x = this.paddle.x;
+      this.ball.y = this.paddle.y - PADDLE_H / 2 - this.ball.displayHeight / 2;
       this.updateAimIndicator(delta);
     } else {
       this.aimGraphics.clear();

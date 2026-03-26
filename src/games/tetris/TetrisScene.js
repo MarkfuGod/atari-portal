@@ -247,6 +247,9 @@ export class TetrisScene extends BaseGameScene {
   lockPiece() {
     const shape = this.getShape();
     const color = PIECE_COLORS[this.currentType];
+
+    if (this.portalTriggered && !this.gameOver && this._checkPieceCellsPortal(shape)) return;
+
     for (let r = 0; r < shape.length; r++) {
       for (let c = 0; c < shape[r].length; c++) {
         if (!shape[r][c]) continue;
@@ -264,6 +267,18 @@ export class TetrisScene extends BaseGameScene {
       this.clearLines();
       this.spawnPiece();
     }
+  }
+
+  _checkPieceCellsPortal(shape) {
+    for (let r = 0; r < shape.length; r++) {
+      for (let c = 0; c < shape[r].length; c++) {
+        if (!shape[r][c]) continue;
+        const cellX = BOARD_X + (this.currentPieceX + c) * CELL + CELL / 2;
+        const cellY = BOARD_Y + (this.currentPieceY + r) * CELL + CELL / 2;
+        if (this.tryEnterPortal(cellX, cellY)) return true;
+      }
+    }
+    return false;
   }
 
   clearLines() {
@@ -351,7 +366,11 @@ export class TetrisScene extends BaseGameScene {
     if (!this.portalTriggered) {
       this.portalTriggered = true;
     }
-    super.onPortalForceSpawn();
+    const spawnRow = Math.floor(ROWS * 0.4);
+    this.portal.spawnPortal(
+      BOARD_X + Math.floor(COLS / 2) * CELL + CELL / 2,
+      BOARD_Y + spawnRow * CELL + CELL / 2,
+    );
   }
 
   drawBoardFrame() {
@@ -505,7 +524,15 @@ export class TetrisScene extends BaseGameScene {
     this.glitch.checkDataLeakCollection(px, py);
 
     if (this.portalTriggered) {
-      this.tryEnterPortal(px, py);
+      const shape = this.getShape();
+      for (let r = 0; r < shape.length; r++) {
+        for (let c = 0; c < shape[r].length; c++) {
+          if (!shape[r][c]) continue;
+          const cx = BOARD_X + (this.currentPieceX + c) * CELL + CELL / 2;
+          const cy = BOARD_Y + (this.currentPieceY + r) * CELL + CELL / 2;
+          if (this.tryEnterPortal(cx, cy)) return;
+        }
+      }
     }
   }
 
