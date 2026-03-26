@@ -5,6 +5,7 @@ import SFX from '../core/SFXManager.js';
 import BGM from '../core/AudioManager.js';
 import NeonGlow from '../vfx/NeonGlow.js';
 import GlitchEffect from '../vfx/GlitchEffect.js';
+import AudioBackground from '../vfx/AudioBackground.js';
 
 export class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -20,6 +21,7 @@ export class GameOverScene extends Phaser.Scene {
     BGM.stop(this);
     this.cameras.main.fadeIn(500);
     this.cameras.main.setBackgroundColor(COLORS.BG_DARK);
+    AudioBackground.setScene('GameOverScene');
 
     GlitchEffect.screenTear(this, 800);
 

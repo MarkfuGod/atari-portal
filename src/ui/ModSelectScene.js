@@ -3,6 +3,7 @@ import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../config.js';
 import { GameManager } from '../core/GameManager.js';
 import SFX from '../core/SFXManager.js';
 import NeonGlow from '../vfx/NeonGlow.js';
+import AudioBackground from '../vfx/AudioBackground.js';
 
 const cyan = '#00f0ff';
 const magenta = '#ff00e6';
@@ -21,6 +22,7 @@ export class ModSelectScene extends Phaser.Scene {
     this.scene.bringToTop();
     this.cameras.main.setBackgroundColor(COLORS.BG_DARK);
     this.cameras.main.fadeIn(400);
+    AudioBackground.setScene('ModSelectScene');
 
     this.drawGridBackground();
 
