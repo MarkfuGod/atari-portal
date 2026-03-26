@@ -1,0 +1,500 @@
+import Phaser from 'phaser';
+import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../../config.js';
+import { GameManager } from '../../core/GameManager.js';
+import { BaseGameScene } from '../BaseGameScene.js';
+import SFX from '../../core/SFXManager.js';
+
+const COLS = 11;
+const ROWS = 5;
+const INVADER_SPACING_X = 48;
+const INVADER_SPACING_Y = 36;
+const GRID_TOP = 70;
+const PLAYER_Y = GAME_HEIGHT - 40;
+const BULLET_SPEED = -420;
+const BOMB_SPEED = 220;
+const PLAYER_SPEED = 260;
+const BASE_MOVE_INTERVAL = 900;
+const MIN_MOVE_INTERVAL = 160;
+const STEP_DOWN = 16;
+const BOMB_INTERVAL_MIN = 600;
+const BOMB_INTERVAL_MAX = 1800;
+const MOTHERSHIP_SPEED = 120;
+const INVINCIBILITY_MS = 1500;
+const SPREAD_VX = 120;
+const DOUBLE_SHOT_OFFSET = 10;
+
+export class SpaceInvadersScene extends BaseGameScene {
+  constructor() {
+    super('SpaceInvadersScene', 'spaceInvaders');
+  }
+
+  create() {
+    super.create();
+
+    this.invaders = this.add.group();
+    this.bullets = this.add.group();
+    this.bombs = this.add.group();
+
+    this.direction = 1;
+    this.moveTimer = 0;
+    this.bombTimer = 0;
+    this.portalTriggered = false;
+    this.mothershipActive = false;
+    this.portalMothershipSpawned = false;
+    this.invincible = false;
+    this.shieldCharges = 0;
+
+    this.createPlayer();
+    this.createInvaderGrid();
+    this.totalInvaders = this.invaders.getChildren().length;
+    this.aliveCount = this.totalInvaders;
+
+    this._onPowerUpCollected = (def) => {
+      if (def.id === 'bomb') {
+        this.applyBombPowerUp();
+      } else if (def.id === 'shield') {
+        this.shieldCharges++;
+      }
+    };
+    this.events.on('powerup-collected', this._onPowerUpCollected);
+
+    this.setupInput();
+    this.scheduleMothership();
+  }
+
+  createPlayer() {
+    this.player = this.add.rectangle(
+      GAME_WIDTH / 2, PLAYER_Y, 28, 16, COLORS.GREEN
+    );
+    this.player.setData('texture', 'player-ship');
+    this.playerAlive = true;
+
+    const tex = this.textures.exists('player-ship');
+    if (tex) {
+      this.player.destroy();
+      this.player = this.add.sprite(GAME_WIDTH / 2, PLAYER_Y, 'player-ship');
+    }
+  }
+
+  createInvaderGrid() {
+    const mult = GameManager.mutationSystem.enemyMultiplier;
+    const extraRows = mult > 1 ? Math.floor((mult - 1) * ROWS) : 0;
+    const totalRows = ROWS + extraRows;
+
+    const gridWidth = (COLS - 1) * INVADER_SPACING_X;
+    const startX = (GAME_WIDTH - gridWidth) / 2;
+
+    for (let row = 0; row < totalRows; row++) {
+      for (let col = 0; col < COLS; col++) {
+        const x = startX + col * INVADER_SPACING_X;
+        const y = GRID_TOP + row * INVADER_SPACING_Y;
+
+        let invader;
+        if (this.textures.exists('invader')) {
+          invader = this.add.sprite(x, y, 'invader');
+        } else {
+          invader = this.add.rectangle(x, y, 22, 16, row < 2 ? COLORS.RED : COLORS.WHITE);
+        }
+
+        invader.setData('alive', true);
+        invader.setData('row', row);
+        invader.setData('col', col);
+        this.invaders.add(invader);
+      }
+    }
+  }
+
+  setupInput() {
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+    this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+    this.keyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
+    this.keyS = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+    this.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+  }
+
+  update(time, delta) {
+    super.update(time, delta);
+
+    if (!this.playerAlive) return;
+
+    this.updatePlayer(delta);
+    this.updateBullets();
+    this.updateBombs();
+    this.updateInvaders(delta);
+    this.updateMothership(delta);
+    this.checkBombTimer(time);
+
+    this.setPlayerPosition(this.player.x, this.player.y);
+    this.powerUps.checkCollection(this.player.x, this.player.y);
+    this.glitch.checkDataLeakCollection(this.player.x, this.player.y);
+
+    if (this.portal.portalActive) {
+      this.tryEnterPortal(this.player.x, this.player.y);
+    }
+  }
+
+  updatePlayer(delta) {
+    const dt = delta / 1000;
+    let vx = 0;
+    let vy = 0;
+    const minY = GAME_HEIGHT * 0.5;
+    const maxY = GAME_HEIGHT - 16;
+
+    const inv = this.controlInverted;
+    if ((inv ? (this.cursors.right.isDown || this.keyD.isDown) : (this.cursors.left.isDown || this.keyA.isDown))) vx = -PLAYER_SPEED;
+    else if ((inv ? (this.cursors.left.isDown || this.keyA.isDown) : (this.cursors.right.isDown || this.keyD.isDown))) vx = PLAYER_SPEED;
+
+    if ((inv ? (this.cursors.down.isDown || this.keyS.isDown) : (this.cursors.up.isDown || this.keyW.isDown))) vy = -PLAYER_SPEED;
+    else if ((inv ? (this.cursors.up.isDown || this.keyW.isDown) : (this.cursors.down.isDown || this.keyS.isDown))) vy = PLAYER_SPEED;
+
+    this.player.x = Phaser.Math.Clamp(this.player.x + vx * dt, 16, GAME_WIDTH - 16);
+    this.player.y = Phaser.Math.Clamp(this.player.y + vy * dt, minY, maxY);
+
+    if (Phaser.Input.Keyboard.JustDown(this.fireKey) && this.bullets.getLength() === 0) {
+      this.fireBullet();
+    }
+  }
+
+  fireBullet() {
+    const py = this.player.y - 14;
+    const spread = this.powerUps.hasEffect('spread');
+    const doubleShot = GameManager.modSystem.hasMod('double_shot');
+
+    if (spread) {
+      this.spawnPlayerBullet(this.player.x, py, 0);
+      this.spawnPlayerBullet(this.player.x, py, -SPREAD_VX);
+      this.spawnPlayerBullet(this.player.x, py, SPREAD_VX);
+    } else if (doubleShot) {
+      this.spawnPlayerBullet(this.player.x - DOUBLE_SHOT_OFFSET, py, 0);
+      this.spawnPlayerBullet(this.player.x + DOUBLE_SHOT_OFFSET, py, 0);
+    } else {
+      this.spawnPlayerBullet(this.player.x, py, 0);
+    }
+    SFX.siShoot();
+  }
+
+  spawnPlayerBullet(x, y, vx) {
+    let bullet;
+    if (this.textures.exists('bullet')) {
+      bullet = this.add.sprite(x, y, 'bullet');
+    } else {
+      bullet = this.add.rectangle(x, y, 4, 12, COLORS.CYAN);
+    }
+    if (vx) bullet.setData('vx', vx);
+    this.bullets.add(bullet);
+  }
+
+  updateBullets() {
+    const dt = this.game.loop.delta / 1000;
+
+    this.bullets.getChildren().forEach(bullet => {
+      bullet.y += BULLET_SPEED * dt;
+      const bvx = bullet.getData('vx');
+      if (bvx) bullet.x += bvx * dt;
+
+      if (bullet.y < this.gameArea.y) {
+        bullet.destroy();
+        return;
+      }
+
+      if (this.mothershipSprite && this.mothershipSprite.active) {
+        if (this.hitTest(bullet, this.mothershipSprite, 30, 12)) {
+          this.onMothershipHit(bullet);
+          return;
+        }
+      }
+
+      for (const invader of this.invaders.getChildren()) {
+        if (!invader.getData('alive')) continue;
+        if (this.hitTest(bullet, invader, 16, 12)) {
+          this.onInvaderHit(bullet, invader);
+          return;
+        }
+      }
+    });
+  }
+
+  hitTest(a, b, hw, hh) {
+    return Math.abs(a.x - b.x) < hw && Math.abs(a.y - b.y) < hh;
+  }
+
+  onInvaderHit(bullet, invader) {
+    bullet.destroy();
+    this.killInvader(invader);
+  }
+
+  killInvader(invader) {
+    invader.setData('alive', false);
+    invader.setVisible(false);
+    invader.setActive(false);
+
+    this.aliveCount--;
+    this.score.award('invader');
+    SFX.invaderHit();
+
+    if (GameManager.mutationSystem.enemyDropCoins) {
+      GameManager.addCoins(1);
+      this.events.emit('coins-changed', GameManager.state.coins);
+    }
+
+    this.flashEffect(invader.x, invader.y, COLORS.WHITE);
+
+    if (this.shouldTriggerPortalMothership()) {
+      this.spawnPortalMothership();
+    }
+  }
+
+  applyBombPowerUp() {
+    const alive = this.invaders.getChildren().filter(i => i.getData('alive'));
+    let n = Math.min(5, alive.length);
+    while (n > 0 && alive.length > 0) {
+      const idx = Phaser.Math.Between(0, alive.length - 1);
+      const inv = alive.splice(idx, 1)[0];
+      this.killInvader(inv);
+      n--;
+    }
+  }
+
+  onMothershipHit(bullet) {
+    bullet.destroy();
+    const mx = this.mothershipSprite.x;
+    const my = this.mothershipSprite.y;
+
+    this.score.award('mothership');
+    this.flashEffect(mx, my, COLORS.RED);
+
+    const isPortalShip = this.mothershipSprite.getData('portalShip');
+    this.mothershipSprite.destroy();
+    this.mothershipSprite = null;
+    this.mothershipActive = false;
+
+    if (isPortalShip && !this.portalTriggered) {
+      this.portalTriggered = true;
+      this.explosionEffect(mx, my);
+      this.time.delayedCall(400, () => this.triggerPortal(mx, my));
+    }
+  }
+
+  shouldTriggerPortalMothership() {
+    if (this.portalTriggered || this.portalMothershipSpawned) return false;
+    return this.aliveCount <= Math.floor(this.totalInvaders * 0.3);
+  }
+
+  spawnPortalMothership() {
+    this.portalMothershipSpawned = true;
+    this.time.delayedCall(1200, () => {
+      this.spawnMothership(true);
+    });
+  }
+
+  scheduleMothership() {
+    const delay = Phaser.Math.Between(10000, 20000);
+    this.time.delayedCall(delay, () => {
+      if (!this.mothershipActive && this.playerAlive) {
+        this.spawnMothership(false);
+      }
+      if (this.playerAlive) this.scheduleMothership();
+    });
+  }
+
+  spawnMothership(isPortalShip) {
+    if (this.mothershipActive) return;
+    this.mothershipActive = true;
+
+    const fromLeft = Math.random() > 0.5;
+    const startX = fromLeft ? -30 : GAME_WIDTH + 30;
+    const dir = fromLeft ? 1 : -1;
+
+    if (this.textures.exists('mothership')) {
+      this.mothershipSprite = this.add.sprite(startX, this.gameArea.y + 20, 'mothership');
+    } else {
+      this.mothershipSprite = this.add.rectangle(startX, this.gameArea.y + 20, 32, 14, COLORS.RED);
+    }
+
+    this.mothershipSprite.setData('dir', dir);
+    this.mothershipSprite.setData('portalShip', isPortalShip);
+
+    if (isPortalShip) {
+      this.tweens.add({
+        targets: this.mothershipSprite,
+        alpha: { from: 1, to: 0.4 },
+        duration: 300,
+        yoyo: true,
+        repeat: -1,
+      });
+    }
+  }
+
+  updateMothership(delta) {
+    if (!this.mothershipSprite || !this.mothershipSprite.active) return;
+
+    const dt = delta / 1000;
+    const dir = this.mothershipSprite.getData('dir');
+    this.mothershipSprite.x += MOTHERSHIP_SPEED * dir * dt;
+
+    if (this.mothershipSprite.x < -50 || this.mothershipSprite.x > GAME_WIDTH + 50) {
+      this.mothershipSprite.destroy();
+      this.mothershipSprite = null;
+      this.mothershipActive = false;
+    }
+  }
+
+  checkBombTimer(time) {
+    if (this.enemiesFrozen) return;
+    if (time < this.bombTimer) return;
+
+    const alive = this.invaders.getChildren().filter(i => i.getData('alive'));
+    if (alive.length === 0) return;
+
+    const shooter = Phaser.Utils.Array.GetRandom(alive);
+    this.dropBomb(shooter.x, shooter.y);
+
+    this.bombTimer = time + Phaser.Math.Between(BOMB_INTERVAL_MIN, BOMB_INTERVAL_MAX);
+  }
+
+  dropBomb(x, y) {
+    let bomb;
+    if (this.textures.exists('enemy-bullet')) {
+      bomb = this.add.sprite(x, y + 10, 'enemy-bullet');
+    } else {
+      bomb = this.add.rectangle(x, y + 10, 4, 10, COLORS.YELLOW);
+    }
+    this.bombs.add(bomb);
+    SFX.bombDrop();
+  }
+
+  updateBombs() {
+    const dt = this.game.loop.delta / 1000;
+
+    this.bombs.getChildren().forEach(bomb => {
+      bomb.y += BOMB_SPEED * dt;
+
+      if (bomb.y > GAME_HEIGHT) {
+        bomb.destroy();
+        return;
+      }
+
+      if (!this.invincible && this.hitTest(bomb, this.player, 14, 12)) {
+        bomb.destroy();
+        this.onHit();
+      }
+    });
+  }
+
+  updateInvaders(delta) {
+    if (this.enemiesFrozen) return;
+    this.moveTimer -= delta;
+    if (this.moveTimer > 0) return;
+
+    const ratio = this.aliveCount / this.totalInvaders;
+    this.moveTimer = Phaser.Math.Linear(MIN_MOVE_INTERVAL, BASE_MOVE_INTERVAL, ratio) / GameManager.speedMultiplier;
+
+    let edgeHit = false;
+    const alive = this.invaders.getChildren().filter(i => i.getData('alive'));
+
+    for (const inv of alive) {
+      const nx = inv.x + this.direction * 12;
+      if (nx < 20 || nx > GAME_WIDTH - 20) {
+        edgeHit = true;
+        break;
+      }
+    }
+
+    if (edgeHit) {
+      this.direction *= -1;
+      for (const inv of alive) {
+        inv.y += STEP_DOWN;
+        if (inv.y >= PLAYER_Y - 20) {
+          this.onInvadersReachedBottom();
+          return;
+        }
+      }
+    } else {
+      for (const inv of alive) {
+        inv.x += this.direction * 12;
+      }
+    }
+  }
+
+  onInvadersReachedBottom() {
+    this.onHit();
+  }
+
+  onHit() {
+    if (this.invincible) return;
+
+    if (this.shieldCharges > 0) {
+      this.shieldCharges--;
+      this.flashEffect(this.player.x, this.player.y, COLORS.NEON_CYAN);
+      return;
+    }
+
+    this.flashEffect(this.player.x, this.player.y, COLORS.RED);
+    const alive = this.onPlayerDeath();
+
+    if (alive) {
+      this.invincible = true;
+      this.tweens.add({
+        targets: this.player,
+        alpha: { from: 0.2, to: 1 },
+        duration: 120,
+        yoyo: true,
+        repeat: Math.floor(INVINCIBILITY_MS / 240),
+        onComplete: () => {
+          this.invincible = false;
+          this.player.setAlpha(1);
+        },
+      });
+    } else {
+      this.playerAlive = false;
+    }
+  }
+
+  showPortalHint() {
+    this._showHintText('▸ FLY YOUR SHIP INTO THE PORTAL (↑↓←→) ▸');
+  }
+
+  onPortalForceSpawn() {
+    if (!this.portalTriggered) {
+      this.portalTriggered = true;
+      this.triggerPortal(GAME_WIDTH / 2, GAME_HEIGHT / 2);
+    }
+  }
+
+  flashEffect(x, y, color) {
+    const flash = this.add.rectangle(x, y, 24, 24, color);
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      scaleX: 2,
+      scaleY: 2,
+      duration: 250,
+      onComplete: () => flash.destroy(),
+    });
+  }
+
+  explosionEffect(x, y) {
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8;
+      const particle = this.add.rectangle(
+        x, y, 6, 6,
+        Phaser.Utils.Array.GetRandom([COLORS.RED, COLORS.YELLOW, COLORS.WHITE])
+      );
+      this.tweens.add({
+        targets: particle,
+        x: x + Math.cos(angle) * 60,
+        y: y + Math.sin(angle) * 60,
+        alpha: 0,
+        duration: 500,
+        ease: 'Power2',
+        onComplete: () => particle.destroy(),
+      });
+    }
+  }
+
+  shutdown() {
+    try { this.events.off('powerup-collected', this._onPowerUpCollected); } catch (_) {}
+    super.shutdown();
+  }
+}
