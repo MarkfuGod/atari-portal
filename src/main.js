@@ -15,6 +15,7 @@ import { SpaceInvadersScene } from './games/space-invaders/SpaceInvadersScene.js
 import { FroggerScene } from './games/frogger/FroggerScene.js';
 import { AsteroidsScene } from './games/asteroids/AsteroidsScene.js';
 import { TetrisScene } from './games/tetris/TetrisScene.js';
+import AudioBackground from './vfx/AudioBackground.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -50,3 +51,4 @@ const config = {
 };
 
 new Phaser.Game(config);
+AudioBackground.init();

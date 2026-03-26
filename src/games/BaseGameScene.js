@@ -10,6 +10,7 @@ import BGM from '../core/AudioManager.js';
 import AudioReactive from '../core/AudioReactiveSystem.js';
 import NeonGlow from '../vfx/NeonGlow.js';
 import GlitchEffect from '../vfx/GlitchEffect.js';
+import AudioBackground from '../vfx/AudioBackground.js';
 
 export class BaseGameScene extends Phaser.Scene {
   constructor(key, scoreKey) {
@@ -20,6 +21,7 @@ export class BaseGameScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.BG_DARK);
+    AudioBackground.setScene(this.sceneKey, GameManager.state.mode);
     console.log('[AudioReactive] BaseGameScene create', this.sceneKey);
 
     this.portal = new PortalSystem(this);

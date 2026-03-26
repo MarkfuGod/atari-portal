@@ -1,14 +1,23 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, COLORS, GAME_ORDER, GAME_NAMES } from '../config.js';
+import { GAME_WIDTH, GAME_HEIGHT, COLORS, GAME_ORDER, GAME_NAMES, AUDIO_REACTIVE as AR } from '../config.js';
 import { GameManager } from '../core/GameManager.js';
 import SFX from '../core/SFXManager.js';
 import BGM from '../core/AudioManager.js';
+import AudioReactive from '../core/AudioReactiveSystem.js';
 import NeonGlow from '../vfx/NeonGlow.js';
+import AudioBackground from '../vfx/AudioBackground.js';
 
 const cyan = '#00f0ff';
 const magenta = '#ff00e6';
 const purple = '#b845ff';
 const green = '#39ff14';
+
+const SPECTRUM_BARS = 64;
+const SPECTRUM_CX = GAME_WIDTH / 2;
+const SPECTRUM_CY = 210;
+const SPECTRUM_BASE_RADIUS = 45;
+const SPECTRUM_MAX_BAR = 55;
+const SPECTRUM_BAR_WIDTH = 3;
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -19,24 +28,34 @@ export class MenuScene extends Phaser.Scene {
     this.cameras.main.fadeIn(500);
     this.cameras.main.setBackgroundColor(COLORS.BG_DARK);
     BGM.playForScene(this, 'MenuScene');
+    AudioBackground.setScene('MenuScene');
     this.levelSelectOpen = false;
     this.levelSelectItems = [];
     this.shopOpen = false;
     this.shopItems = [];
 
+    try {
+      if (this.scene.isSleeping('CRTOverlay')) {
+        this.scene.wake('CRTOverlay');
+      } else if (!this.scene.isActive('CRTOverlay')) {
+        this.scene.launch('CRTOverlay');
+      }
+    } catch (_) { /* safe */ }
+
     const cx = GAME_WIDTH / 2;
 
     this.drawGridBackground();
-    this.drawPortalDecor(cx, 210);
+    this._initSpectrumRing();
     this.drawDataStreams();
 
-    const title = this.add.text(cx, 60, 'ATARI PORTAL', {
+    this.titleText = this.add.text(cx, 60, 'ATARI PORTAL', {
       fontSize: '44px', fontFamily: 'monospace', color: magenta,
     }).setOrigin(0.5).setDepth(10);
-    NeonGlow.applyTextGlow(this, title, COLORS.NEON_MAGENTA);
+    NeonGlow.applyTextGlow(this, this.titleText, COLORS.NEON_MAGENTA);
+    this._beatTitleActive = false;
 
     this.tweens.add({
-      targets: title,
+      targets: this.titleText,
       alpha: { from: 0.7, to: 1 },
       duration: 1500, yoyo: true, repeat: -1,
     });
@@ -47,7 +66,7 @@ export class MenuScene extends Phaser.Scene {
 
     this.typewriterEffect(subtitle, 'SYSTEM BREACH DETECTED...', 40);
 
-    const versionText = this.add.text(cx, 138, 'v2.0 // CYBERPUNK EDITION', {
+    this.add.text(cx, 138, 'v2.0 // CYBERPUNK EDITION', {
       fontSize: '10px', fontFamily: 'monospace', color: purple,
     }).setOrigin(0.5).setAlpha(0.5).setDepth(10);
 
@@ -69,11 +88,157 @@ export class MenuScene extends Phaser.Scene {
 
     const borderG = this.add.graphics().setDepth(10);
     NeonGlow.cornerAccents(borderG, 10, 10, GAME_WIDTH - 20, GAME_HEIGHT - 20, 20, COLORS.NEON_CYAN, 1);
+
+    this._spectrumColors = [];
+    const cC = Phaser.Display.Color.ValueToColor(COLORS.NEON_CYAN);
+    const cM = Phaser.Display.Color.ValueToColor(COLORS.NEON_MAGENTA);
+    for (let i = 0; i < SPECTRUM_BARS; i++) {
+      const t = i / (SPECTRUM_BARS - 1);
+      this._spectrumColors.push(Phaser.Display.Color.GetColor(
+        Phaser.Math.Linear(cC.red, cM.red, t),
+        Phaser.Math.Linear(cC.green, cM.green, t),
+        Phaser.Math.Linear(cC.blue, cM.blue, t),
+      ));
+    }
+
+    this._gridAlpha = 0.25;
   }
 
+  // ─── Audio-reactive update loop ───────────────────────────────
+
+  update(_time, delta) {
+    AudioReactive.update(delta);
+    const ar = AudioReactive;
+    if (!ar._connected) return;
+
+    this._updateSpectrumRing(ar);
+    this._updateGrid(ar);
+    this._updateTitle(ar);
+
+    if (ar.isBeat) {
+      this._spawnBeatBurst(ar.beatIntensity);
+      this.cameras.main.shake(100, AR.BEAT_CAMERA_SHAKE * ar.beatIntensity);
+    }
+  }
+
+  // ─── Spectrum ring ────────────────────────────────────────────
+
+  _initSpectrumRing() {
+    this._spectrumGfx = this.add.graphics().setDepth(2);
+    this._ringGlowGfx = this.add.graphics().setDepth(1);
+    this._drawRingGlow(SPECTRUM_BASE_RADIUS, 0.15);
+
+    this._spectrumParticles = [];
+    for (let i = 0; i < 16; i++) {
+      const angle = (Math.PI * 2 * i) / 16;
+      const r = SPECTRUM_BASE_RADIUS + 8;
+      const color = [COLORS.NEON_CYAN, COLORS.NEON_MAGENTA, COLORS.NEON_PURPLE][i % 3];
+      const p = this.add.circle(
+        SPECTRUM_CX + Math.cos(angle) * r,
+        SPECTRUM_CY + Math.sin(angle) * r,
+        1 + Math.random() * 1.5, color, 0.5
+      ).setDepth(3);
+      this._spectrumParticles.push(p);
+      this.tweens.add({
+        targets: p,
+        angle: 360,
+        x: { value: `+=${Math.cos(angle + 0.3) * 4}`, duration: 8000, yoyo: true, repeat: -1 },
+        y: { value: `+=${Math.sin(angle + 0.3) * 4}`, duration: 8000, yoyo: true, repeat: -1 },
+        alpha: { from: 0.3, to: 0.7, duration: 2000 + Math.random() * 2000, yoyo: true, repeat: -1 },
+      });
+    }
+  }
+
+  _drawRingGlow(radius, alpha) {
+    const g = this._ringGlowGfx;
+    g.clear();
+    g.lineStyle(8, COLORS.NEON_PURPLE, alpha * 0.2);
+    g.strokeCircle(SPECTRUM_CX, SPECTRUM_CY, radius + 6);
+    g.lineStyle(4, COLORS.NEON_CYAN, alpha * 0.4);
+    g.strokeCircle(SPECTRUM_CX, SPECTRUM_CY, radius);
+    g.lineStyle(1, COLORS.NEON_MAGENTA, alpha * 0.8);
+    g.strokeCircle(SPECTRUM_CX, SPECTRUM_CY, radius - 3);
+  }
+
+  _updateSpectrumRing(ar) {
+    const g = this._spectrumGfx;
+    g.clear();
+
+    if (!ar._freqData) return;
+
+    const freqData = ar._freqData;
+    const binCount = freqData.length;
+    const binsPerBar = Math.max(1, Math.floor(binCount / SPECTRUM_BARS));
+    const radius = SPECTRUM_BASE_RADIUS + ar.bassSmooth * 14;
+
+    this._drawRingGlow(radius, 0.15 + ar.energy * 0.5);
+
+    for (let i = 0; i < SPECTRUM_BARS; i++) {
+      let val = 0;
+      for (let b = 0; b < binsPerBar; b++) {
+        val += freqData[i * binsPerBar + b];
+      }
+      val = val / binsPerBar / 255;
+
+      const angle = (Math.PI * 2 * i) / SPECTRUM_BARS - Math.PI / 2;
+      const barLen = val * SPECTRUM_MAX_BAR;
+      if (barLen < 1) continue;
+
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const x1 = SPECTRUM_CX + cos * radius;
+      const y1 = SPECTRUM_CY + sin * radius;
+      const x2 = SPECTRUM_CX + cos * (radius + barLen);
+      const y2 = SPECTRUM_CY + sin * (radius + barLen);
+      const color = this._spectrumColors[i];
+      const alpha = 0.35 + val * 0.65;
+
+      g.lineStyle(SPECTRUM_BAR_WIDTH + 4, color, alpha * 0.15);
+      g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.strokePath();
+
+      g.lineStyle(SPECTRUM_BAR_WIDTH, color, alpha);
+      g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.strokePath();
+    }
+
+    for (let i = 0; i < this._spectrumParticles.length; i++) {
+      this._spectrumParticles[i].setAlpha(0.25 + ar.energy * 0.75);
+    }
+  }
+
+  // ─── Beat burst ───────────────────────────────────────────────
+
+  _spawnBeatBurst(intensity) {
+    const count = 6 + Math.floor(intensity * 8);
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 50 + Math.random() * 90;
+      const color = [COLORS.NEON_CYAN, COLORS.NEON_MAGENTA, COLORS.NEON_PURPLE][Math.floor(Math.random() * 3)];
+      const size = 1 + Math.random() * 2.5;
+      const p = this.add.circle(SPECTRUM_CX, SPECTRUM_CY, size, color, 0.7 + intensity * 0.3).setDepth(4);
+      this.tweens.add({
+        targets: p,
+        x: SPECTRUM_CX + Math.cos(angle) * dist,
+        y: SPECTRUM_CY + Math.sin(angle) * dist,
+        alpha: 0,
+        scale: 0.2,
+        duration: 350 + Math.random() * 350,
+        ease: 'Quad.easeOut',
+        onComplete: () => p.destroy(),
+      });
+    }
+  }
+
+  // ─── Bass-pulsing grid ────────────────────────────────────────
+
   drawGridBackground() {
-    const g = this.add.graphics();
-    g.lineStyle(1, COLORS.GRID_LINE, 0.25);
+    this._gridGfx = this.add.graphics();
+    this._drawGrid(0.25);
+  }
+
+  _drawGrid(alpha) {
+    const g = this._gridGfx;
+    g.clear();
+    g.lineStyle(1, COLORS.GRID_LINE, alpha);
     for (let x = 0; x < GAME_WIDTH; x += 40) {
       g.strokeLineShape(new Phaser.Geom.Line(x, 0, x, GAME_HEIGHT));
     }
@@ -82,58 +247,68 @@ export class MenuScene extends Phaser.Scene {
     }
   }
 
-  drawPortalDecor(cx, cy) {
-    const g = this.add.graphics().setDepth(1);
-    for (let i = 0; i < 3; i++) {
-      const color = i % 2 === 0 ? COLORS.NEON_PURPLE : COLORS.NEON_CYAN;
-      g.lineStyle(2 - i * 0.3, color, 0.2 - i * 0.04);
-      g.strokeCircle(cx, cy, 30 + i * 18);
-    }
-    this.tweens.add({
-      targets: g, angle: 360, duration: 12000, repeat: -1,
-    });
-
-    for (let i = 0; i < 20; i++) {
-      const angle = (Math.PI * 2 * i) / 20;
-      const r = 35 + Math.random() * 35;
-      const color = [COLORS.NEON_CYAN, COLORS.NEON_MAGENTA, COLORS.NEON_PURPLE][i % 3];
-      const p = this.add.circle(
-        cx + Math.cos(angle) * r,
-        cy + Math.sin(angle) * r,
-        1 + Math.random() * 1.5,
-        color, 0.4 + Math.random() * 0.4
-      ).setDepth(1);
-      this.tweens.add({
-        targets: p,
-        x: cx + Math.cos(angle + Math.PI) * (r + 15),
-        y: cy + Math.sin(angle + Math.PI) * (r + 15),
-        alpha: 0, duration: 3000 + Math.random() * 3000,
-        yoyo: true, repeat: -1,
-      });
+  _updateGrid(ar) {
+    const target = Phaser.Math.Linear(0.08, 0.35, ar.bassSmooth);
+    if (Math.abs(target - this._gridAlpha) > 0.008) {
+      this._gridAlpha = target;
+      this._drawGrid(target);
     }
   }
 
+  // ─── Beat-reactive title ──────────────────────────────────────
+
+  _updateTitle(ar) {
+    if (!ar.isBeat || this._beatTitleActive) return;
+
+    this._beatTitleActive = true;
+    this.tweens.add({
+      targets: this.titleText,
+      scaleX: 1.07, scaleY: 1.07,
+      duration: 80,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        this.titleText.setScale(1);
+        this._beatTitleActive = false;
+      }
+    });
+
+    if (ar.bass > ar.mid && ar.bass > ar.treble) {
+      this.titleText.setColor(magenta);
+      NeonGlow.applyTextGlow(this, this.titleText, COLORS.NEON_MAGENTA);
+    } else if (ar.mid > ar.treble) {
+      this.titleText.setColor(purple);
+      NeonGlow.applyTextGlow(this, this.titleText, COLORS.NEON_PURPLE);
+    } else {
+      this.titleText.setColor(cyan);
+      NeonGlow.applyTextGlow(this, this.titleText, COLORS.NEON_CYAN);
+    }
+  }
+
+  // ─── Enhanced data streams ────────────────────────────────────
+
   drawDataStreams() {
     const chars = '01';
-    for (let col = 0; col < 3; col++) {
-      const x = 30 + col * (GAME_WIDTH / 2 - 30) + Math.random() * 100;
-      for (let i = 0; i < 6; i++) {
+    for (let col = 0; col < 5; col++) {
+      const x = 20 + col * ((GAME_WIDTH - 40) / 4) + Math.random() * 40;
+      for (let i = 0; i < 8; i++) {
         const ch = chars[Math.floor(Math.random() * chars.length)];
         const txt = this.add.text(x, -10 - i * 16, ch, {
-          fontSize: '12px', fontFamily: 'monospace',
-          color: green,
-        }).setAlpha(0.15).setDepth(0);
+          fontSize: '12px', fontFamily: 'monospace', color: green,
+        }).setAlpha(0.2).setDepth(0);
         this.tweens.add({
           targets: txt,
           y: GAME_HEIGHT + 10,
-          alpha: { from: 0.15, to: 0 },
-          duration: 6000 + Math.random() * 4000,
-          delay: Math.random() * 5000 + i * 200,
+          alpha: { from: 0.2, to: 0 },
+          duration: 4500 + Math.random() * 4000,
+          delay: Math.random() * 5000 + i * 180,
           repeat: -1,
         });
       }
     }
   }
+
+  // ─── UI helpers (unchanged) ───────────────────────────────────
 
   typewriterEffect(textObj, fullText, charDelay) {
     let i = 0;
@@ -283,7 +458,6 @@ export class MenuScene extends Phaser.Scene {
       }
     });
 
-    // Achievements section
     const achTitle = this.add.text(cx, 440, '// CODEX', {
       fontSize: '11px', fontFamily: 'monospace', color: '#00f0ff',
     }).setOrigin(0.5).setDepth(101);

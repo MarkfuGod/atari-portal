@@ -4,6 +4,7 @@ import { GameManager } from '../core/GameManager.js';
 import SFX from '../core/SFXManager.js';
 import BGM from '../core/AudioManager.js';
 import NeonGlow from '../vfx/NeonGlow.js';
+import AudioBackground from '../vfx/AudioBackground.js';
 
 export class VictoryScene extends Phaser.Scene {
   constructor() {
@@ -19,6 +20,7 @@ export class VictoryScene extends Phaser.Scene {
     BGM.playForScene(this, 'VictoryScene');
     this.cameras.main.fadeIn(500);
     this.cameras.main.setBackgroundColor(COLORS.BG_DARK);
+    AudioBackground.setScene('VictoryScene');
 
     const title = this.add.text(GAME_WIDTH / 2, 130, 'SYSTEM RESTORED', {
       fontSize: '40px', fontFamily: 'monospace', color: '#39ff14',
