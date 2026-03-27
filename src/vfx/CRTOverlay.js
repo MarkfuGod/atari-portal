@@ -48,16 +48,40 @@ export class CRTOverlay extends Phaser.Scene {
 
     this._scanlineDirty = false;
     this._lastScanAlpha = AR.SCANLINE_ALPHA_MIN;
+    this._intensity = 0.5;
+
+    this.signalLossOverlay = this.add.rectangle(
+      GAME_WIDTH / 2, GAME_HEIGHT / 2,
+      GAME_WIDTH, GAME_HEIGHT,
+      0xffffff, 0
+    ).setDepth(9006);
+
+    this.signalBars = [];
+    for (let i = 0; i < 6; i++) {
+      const bar = this.add.rectangle(
+        GAME_WIDTH / 2, -20,
+        GAME_WIDTH + 10, 8 + Math.random() * 12,
+        0x000000, 0
+      ).setDepth(9007);
+      this.signalBars.push(bar);
+    }
 
     this.scheduleFlicker();
+    this._scheduleSignalLoss();
+  }
+
+  setIntensity(level) {
+    this._intensity = Phaser.Math.Clamp(level, 0, 1);
   }
 
   update() {
     const ar = AudioReactive;
     if (!ar.energy && !ar.isBeat) return;
 
+    const intMult = 0.5 + this._intensity * 0.5;
+
     const scanAlpha = Phaser.Math.Linear(
-      AR.SCANLINE_ALPHA_MIN, AR.SCANLINE_ALPHA_MAX, ar.bassSmooth
+      AR.SCANLINE_ALPHA_MIN * intMult, AR.SCANLINE_ALPHA_MAX * intMult, ar.bassSmooth
     );
     if (Math.abs(scanAlpha - this._lastScanAlpha) > 0.015) {
       this.drawScanlines(scanAlpha);
@@ -69,7 +93,7 @@ export class CRTOverlay extends Phaser.Scene {
         Math.floor(Math.random() * 3)
       ];
       this.beatFlash.setFillStyle(color, 1);
-      this.beatFlash.setAlpha(AR.BEAT_FLASH_ALPHA * ar.beatIntensity);
+      this.beatFlash.setAlpha(AR.BEAT_FLASH_ALPHA * ar.beatIntensity * intMult);
       this.tweens.add({
         targets: this.beatFlash,
         alpha: 0,
@@ -78,14 +102,14 @@ export class CRTOverlay extends Phaser.Scene {
       });
     }
 
-    const offset = AR.CHROMATIC_OFFSET * ar.bassSmooth;
+    const offset = AR.CHROMATIC_OFFSET * ar.bassSmooth * intMult;
     this.chromaL.setPosition(GAME_WIDTH / 2 - offset, GAME_HEIGHT / 2);
     this.chromaR.setPosition(GAME_WIDTH / 2 + offset, GAME_HEIGHT / 2);
-    const chromaAlpha = ar.beatIntensity * 0.04;
+    const chromaAlpha = ar.beatIntensity * 0.04 * intMult;
     this.chromaL.setAlpha(chromaAlpha);
     this.chromaR.setAlpha(chromaAlpha);
 
-    const tintAlpha = ar.energy * AR.ENERGY_TINT_ALPHA;
+    const tintAlpha = ar.energy * AR.ENERGY_TINT_ALPHA * intMult;
     this.energyTint.setAlpha(tintAlpha);
     if (ar.bass > ar.mid && ar.bass > ar.treble) {
       this.energyTint.setFillStyle(COLORS.NEON_MAGENTA, 1);
@@ -140,9 +164,10 @@ export class CRTOverlay extends Phaser.Scene {
   }
 
   doFlicker() {
+    const flickerAlpha = 0.06 + this._intensity * 0.06;
     this.tweens.add({
       targets: this.flickerOverlay,
-      alpha: { from: 0, to: 0.08 },
+      alpha: { from: 0, to: flickerAlpha },
       duration: 50,
       yoyo: true,
       repeat: Phaser.Math.Between(1, 3),
@@ -150,5 +175,44 @@ export class CRTOverlay extends Phaser.Scene {
         this.flickerOverlay.setAlpha(0);
       }
     });
+  }
+
+  _scheduleSignalLoss() {
+    const baseDelay = 20000;
+    const minDelay = 8000;
+    const delay = Math.max(minDelay, baseDelay - this._intensity * 14000) + Math.random() * 10000;
+    this.time.delayedCall(delay, () => {
+      if (this._intensity > 0.3) {
+        this._doSignalLoss();
+      }
+      this._scheduleSignalLoss();
+    });
+  }
+
+  _doSignalLoss() {
+    this.signalLossOverlay.setAlpha(0);
+    this.tweens.add({
+      targets: this.signalLossOverlay,
+      alpha: { from: 0.15 * this._intensity, to: 0 },
+      duration: 80,
+      yoyo: true,
+      repeat: 1,
+    });
+
+    const barCount = Math.floor(2 + this._intensity * 4);
+    for (let i = 0; i < Math.min(barCount, this.signalBars.length); i++) {
+      const bar = this.signalBars[i];
+      const startY = Math.random() * GAME_HEIGHT;
+      bar.setPosition(GAME_WIDTH / 2, startY);
+      bar.setAlpha(0.7 + this._intensity * 0.3);
+      this.tweens.add({
+        targets: bar,
+        y: startY + 100 + Math.random() * 200,
+        alpha: 0,
+        duration: 200 + Math.random() * 300,
+        delay: i * 30,
+        ease: 'Quad.easeOut',
+      });
+    }
   }
 }

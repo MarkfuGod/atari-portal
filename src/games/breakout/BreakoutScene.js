@@ -3,6 +3,10 @@ import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../../config.js';
 import { GameManager } from '../../core/GameManager.js';
 import { BaseGameScene } from '../BaseGameScene.js';
 import SFX from '../../core/SFXManager.js';
+import GlitchEffect from '../../vfx/GlitchEffect.js';
+import ArcadeFX from '../../vfx/ArcadeFX.js';
+import TrailSystem from '../../vfx/TrailSystem.js';
+import DebrisSystem from '../../vfx/DebrisSystem.js';
 
 const ROWS = 6;
 const COLS = 14;
@@ -48,6 +52,7 @@ export class BreakoutScene extends BaseGameScene {
     this.aimAngle = 0;
     this.aimDir = 1;
     this.aimGraphics = this.add.graphics().setDepth(10);
+    this._fieldBorder = this.add.graphics().setDepth(2);
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
@@ -86,9 +91,12 @@ export class BreakoutScene extends BaseGameScene {
     const y = BRICK_TOP - pad;
     const w = COLS * (BRICK_W + BRICK_PAD) + pad;
     const h = ROWS * (BRICK_H + BRICK_PAD) + pad;
-    const g = this.add.graphics().setDepth(2);
+    const g = this._fieldBorder || this.add.graphics().setDepth(2);
+    g.clear();
     g.lineStyle(2, COLORS.NEON_BLUE, 0.55);
     g.strokeRect(x, y, w, h);
+    g.lineStyle(6, this.portalBrickSpawned ? COLORS.NEON_MAGENTA : COLORS.NEON_CYAN, this.portalBrickSpawned ? 0.08 : 0.04);
+    g.strokeRect(x - 2, y - 2, w + 4, h + 4);
   }
 
   createPaddle() {
@@ -98,6 +106,27 @@ export class BreakoutScene extends BaseGameScene {
     this.paddle.setCollideWorldBounds(true);
     this.paddle.setDisplaySize(PADDLE_BASE_W, PADDLE_H);
     this.paddle.refreshBody();
+
+    this._paddleCodeGfx = this.add.graphics().setDepth(11);
+    this._codeScrollOffset = 0;
+  }
+
+  _drawPaddleCodeFlow() {
+    const g = this._paddleCodeGfx;
+    if (!g || !this.paddle) return;
+    g.clear();
+    this._codeScrollOffset = (this._codeScrollOffset + 0.5) % 20;
+    const px = this.paddle.x - this.paddle.displayWidth / 2;
+    const py = this.paddle.y - 2;
+    g.fillStyle(COLORS.NEON_CYAN, 0.08);
+    g.fillRect(px + 2, py, this.paddle.displayWidth - 4, 6);
+    const codeStr = '01101001 10110100';
+    for (let i = 0; i < 3; i++) {
+      const ox = px + 5 + (i * 28 + this._codeScrollOffset) % (this.paddle.displayWidth - 10);
+      g.fillStyle(COLORS.NEON_CYAN, 0.2);
+      g.fillRect(ox, py + 1, 2, 1);
+      g.fillRect(ox + 3, py + 3, 2, 1);
+    }
   }
 
   createBall() {
@@ -117,9 +146,16 @@ export class BreakoutScene extends BaseGameScene {
     });
 
     this.ball.body.onWorldBounds = true;
+
+    this._ballTrailId = TrailSystem.createTrail(this, this.ball, {
+      color: COLORS.NEON_CYAN,
+      length: 7,
+      interval: 30,
+      size: 5,
+    });
   }
 
-  createBricks() {
+  createBricks(animated = false) {
     this.bricks = this.physics.add.staticGroup();
 
     for (let row = 0; row < ROWS; row++) {
@@ -131,6 +167,20 @@ export class BreakoutScene extends BaseGameScene {
         brick.setDisplaySize(BRICK_W, BRICK_H);
         brick.refreshBody();
         brick.isPortal = false;
+        brick.setDepth(5);
+        if (animated) {
+          brick.setAlpha(0);
+          brick.setScale(0.7);
+          this.tweens.add({
+            targets: brick,
+            alpha: 1,
+            scaleX: 1,
+            scaleY: 1,
+            duration: 220,
+            delay: row * 55 + col * 8,
+            ease: 'Back.easeOut',
+          });
+        }
         this.totalBricks++;
       }
     }
@@ -147,6 +197,15 @@ export class BreakoutScene extends BaseGameScene {
     this.ballOnPaddle = false;
     const speed = this.currentBallSpeed();
     this.physics.velocityFromAngle(this.aimAngle - 90, speed, this.ball.body.velocity);
+    ArcadeFX.burst(this, this.ball.x, this.ball.y, {
+      count: 10,
+      distance: 34,
+      duration: 260,
+      colors: [COLORS.WHITE, COLORS.NEON_CYAN, COLORS.NEON_MAGENTA],
+      size: 5,
+    });
+    ArcadeFX.screenTint(this, { color: COLORS.NEON_CYAN, alpha: 0.08, duration: 160 });
+    this.shakeCamera(0.0025, 90);
     this.aimGraphics.clear();
   }
 
@@ -166,22 +225,57 @@ export class BreakoutScene extends BaseGameScene {
     const angle = normalised * 50;
     const speed = this.currentBallSpeed();
     this.physics.velocityFromAngle(angle - 90, speed, _ball.body.velocity);
+    ArcadeFX.flash(this, _ball.x, paddle.y - 4, {
+      color: COLORS.NEON_CYAN,
+      radius: 16,
+      alpha: 0.45,
+      duration: 160,
+      shape: 'rect',
+    });
+    ArcadeFX.burst(this, _ball.x, paddle.y - 4, {
+      count: 7,
+      distance: 24,
+      duration: 180,
+      colors: [COLORS.NEON_CYAN, COLORS.WHITE],
+      size: 4,
+    });
+    this.tweens.killTweensOf(paddle);
+    paddle.setScale(1.12, 0.82);
+    this.tweens.add({
+      targets: paddle,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 120,
+      ease: 'Quad.easeOut',
+    });
+    this.shakeCamera(0.0018, 70);
 
     _ball.y = paddle.y - PADDLE_H / 2 - _ball.displayHeight / 2 - 2;
     _ball.body.updateFromGameObject();
   }
 
   hitBrick(_ball, brick) {
+    const bx = brick.x;
+    const by = brick.y;
+    const isPortal = brick.isPortal;
+    const texture = brick.texture.key;
+
     if (brick.isPortal) {
       SFX.brickPortalHit();
-      this.score.award('goldBrick');
-      this.triggerPortal(brick.x, brick.y);
+      this.score.award('goldBrick', 1, bx, by);
+      GlitchEffect.chromaticAberration(this, 260);
+      ArcadeFX.callout(this, 'PORTAL OPEN', bx, by - 26, {
+        color: COLORS.NEON_MAGENTA,
+        fontSize: '18px',
+      });
+      this.triggerPortal(bx, by);
       this.portalTriggered = true;
     } else {
       SFX.brickHit();
-      this.score.award('brick');
+      this.score.award('brick', 1, bx, by);
     }
 
+    this._spawnBrickBreakFx(brick, texture, isPortal);
     brick.destroy();
     this.bricksDestroyed++;
 
@@ -205,15 +299,26 @@ export class BreakoutScene extends BaseGameScene {
     if (remaining.length === 0) return;
 
     const target = Phaser.Utils.Array.GetRandom(remaining);
-    target.setTexture('brick-portal');
-    target.setDisplaySize(BRICK_W, BRICK_H);
-    target.refreshBody();
-    target.isPortal = true;
+    this._markPortalBrick(target);
     this.portalBrickSpawned = true;
   }
 
   handleBallLost() {
     SFX.ballLost();
+    ArcadeFX.flash(this, this.ball.x, this.ball.y, {
+      color: COLORS.NEON_RED,
+      radius: 20,
+      alpha: 0.55,
+      duration: 200,
+    });
+    ArcadeFX.burst(this, this.ball.x, this.ball.y, {
+      count: 12,
+      distance: 48,
+      duration: 320,
+      colors: [COLORS.NEON_RED, COLORS.NEON_ORANGE, COLORS.WHITE],
+      size: 5,
+    });
+    ArcadeFX.screenTint(this, { color: COLORS.NEON_RED, alpha: 0.12, duration: 220 });
     this.ball.body.setVelocity(0);
 
     const alive = this.onPlayerDeath();
@@ -226,15 +331,37 @@ export class BreakoutScene extends BaseGameScene {
     this.ballOnPaddle = true;
     this.ball.setPosition(this.paddle.x, PADDLE_Y - PADDLE_H / 2 - this.ball.displayHeight / 2);
     this.ball.body.setVelocity(0);
+    this.ball.setAlpha(0.2);
+    this.ball.setScale(0.7);
+    this.tweens.add({
+      targets: this.ball,
+      alpha: 1,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 180,
+      ease: 'Back.easeOut',
+    });
+    ArcadeFX.flash(this, this.ball.x, this.ball.y, {
+      color: COLORS.NEON_CYAN,
+      radius: 14,
+      alpha: 0.25,
+      duration: 180,
+    });
   }
 
   resetLevel() {
     this.bricksDestroyed = 0;
     this.totalBricks = 0;
     this.portalBrickSpawned = false;
-    this.createBricks();
+    ArcadeFX.callout(this, 'SECTOR RESET', GAME_WIDTH / 2, BRICK_TOP + 30, {
+      color: COLORS.NEON_CYAN,
+      fontSize: '20px',
+    });
+    ArcadeFX.screenTint(this, { color: COLORS.NEON_CYAN, alpha: 0.08, duration: 240 });
+    this.createBricks(true);
     this.setupCollisions();
     this.resetBallOnPaddle();
+    this.drawBrickFieldBorder();
   }
 
   onPortalForceSpawn() {
@@ -249,15 +376,79 @@ export class BreakoutScene extends BaseGameScene {
     if (remaining.length === 0 || this.portalBrickSpawned) return;
 
     const target = Phaser.Utils.Array.GetRandom(remaining);
+    this._markPortalBrick(target);
+    this.portalBrickSpawned = true;
+  }
+
+  _markPortalBrick(target) {
     target.setTexture('brick-portal');
     target.setDisplaySize(BRICK_W, BRICK_H);
     target.refreshBody();
     target.isPortal = true;
-    this.portalBrickSpawned = true;
+    this.drawBrickFieldBorder();
+    GlitchEffect.digitalNoise(this, 140);
+    ArcadeFX.callout(this, 'RIFT BRICK', target.x, target.y - 24, {
+      color: COLORS.NEON_MAGENTA,
+      fontSize: '16px',
+      duration: 760,
+    });
+    this.tweens.add({
+      targets: target,
+      alpha: { from: 1, to: 0.45 },
+      scaleX: 1.08,
+      scaleY: 1.08,
+      duration: 260,
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
+  _spawnBrickBreakFx(brick, texture, isPortal) {
+    // Shrink/pop before destruction
+    const clone = this.add.image(brick.x, brick.y, texture)
+      .setDisplaySize(BRICK_W, BRICK_H)
+      .setDepth(12);
+    this.tweens.add({
+      targets: clone,
+      scaleX: 0.1,
+      scaleY: 0.1,
+      alpha: 0,
+      duration: isPortal ? 200 : 120,
+      ease: 'Back.easeIn',
+      onComplete: () => clone.destroy(),
+    });
+
+    ArcadeFX.flash(this, brick.x, brick.y, {
+      color: isPortal ? COLORS.NEON_MAGENTA : COLORS.WHITE,
+      radius: isPortal ? 22 : 16,
+      alpha: isPortal ? 0.45 : 0.35,
+      duration: isPortal ? 260 : 170,
+      shape: 'rect',
+    });
+
+    // Neon debris shatter
+    const brickColor = brick.getData ? brick.getData('color') : COLORS.NEON_CYAN;
+    if (isPortal) {
+      DebrisSystem.deathBurst(this, brick.x, brick.y, 'heavy', {
+        colors: [COLORS.NEON_MAGENTA, COLORS.NEON_CYAN, COLORS.PORTAL_GLOW, COLORS.WHITE],
+      });
+      GlitchEffect.chromaticAberration(this, 300);
+    } else {
+      DebrisSystem.shatter(this, brick.x, brick.y, {
+        count: 8,
+        colors: [brickColor, COLORS.NEON_CYAN, COLORS.WHITE],
+        size: 4,
+        spread: 35,
+        duration: 280,
+      });
+    }
+    this.shakeCamera(isPortal ? 0.004 : 0.0018, isPortal ? 150 : 70);
   }
 
   update(time, delta) {
     super.update(time, delta);
+    this.drawBrickFieldBorder();
+    this._drawPaddleCodeFlow();
 
     if (this._paddleHitCooldown > 0) this._paddleHitCooldown -= delta;
 
@@ -320,7 +511,13 @@ export class BreakoutScene extends BaseGameScene {
     const rad = Phaser.Math.DegToRad(this.aimAngle - 90);
     const endX = startX + Math.cos(rad) * len;
     const endY = startY + Math.sin(rad) * len;
+    const pulse = Math.sin(this.time.now * 0.01) * 0.5 + 0.5;
 
+    g.lineStyle(6, COLORS.NEON_CYAN, 0.08 + pulse * 0.06);
+    g.beginPath();
+    g.moveTo(startX, startY);
+    g.lineTo(endX, endY);
+    g.strokePath();
     g.lineStyle(2, COLORS.NEON_CYAN, 0.6);
     const segments = 8;
     for (let i = 0; i < segments; i++) {
@@ -339,7 +536,7 @@ export class BreakoutScene extends BaseGameScene {
     const ay = endY + Math.sin(rad + Math.PI * 0.85) * triSize;
     const bx = endX + Math.cos(rad - Math.PI * 0.85) * triSize;
     const by = endY + Math.sin(rad - Math.PI * 0.85) * triSize;
-    g.fillStyle(COLORS.NEON_CYAN, 0.8);
+    g.fillStyle(COLORS.NEON_CYAN, 0.75 + pulse * 0.2);
     g.fillTriangle(endX, endY, ax, ay, bx, by);
   }
 

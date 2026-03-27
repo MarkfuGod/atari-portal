@@ -3,6 +3,9 @@ import { BaseGameScene } from '../BaseGameScene.js';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../../config.js';
 import { GameManager } from '../../core/GameManager.js';
 import SFX from '../../core/SFXManager.js';
+import TrailSystem from '../../vfx/TrailSystem.js';
+import DebrisSystem from '../../vfx/DebrisSystem.js';
+import GlitchEffect from '../../vfx/GlitchEffect.js';
 
 const CELL = 28;
 const COLS = 20;
@@ -99,7 +102,7 @@ export class PacmanScene extends BaseGameScene {
 
   drawMaze() {
     const gfx = this.add.graphics();
-    gfx.fillStyle(COLORS.NEON_BLUE, 0.35);
+    gfx.fillStyle(COLORS.NEON_BLUE, 0.2);
 
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
@@ -109,7 +112,8 @@ export class PacmanScene extends BaseGameScene {
       }
     }
 
-    gfx.lineStyle(1, COLORS.NEON_BLUE, 0.5);
+    // Brighter wall outlines
+    gfx.lineStyle(1.5, COLORS.NEON_BLUE, 0.7);
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         if (MAZE[r][c] === 1) {
@@ -119,6 +123,25 @@ export class PacmanScene extends BaseGameScene {
           if (r < ROWS - 1 && MAZE[r + 1][c] !== 1) gfx.strokeLineShape(new Phaser.Geom.Line(x, y + CELL, x + CELL, y + CELL));
           if (c > 0 && MAZE[r][c - 1] !== 1) gfx.strokeLineShape(new Phaser.Geom.Line(x, y, x, y + CELL));
           if (c < COLS - 1 && MAZE[r][c + 1] !== 1) gfx.strokeLineShape(new Phaser.Geom.Line(x + CELL, y, x + CELL, y + CELL));
+        }
+      }
+    }
+
+    // Node light points at intersections
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (MAZE[r][c] === 0) {
+          let paths = 0;
+          if (r > 0 && MAZE[r - 1][c] === 0) paths++;
+          if (r < ROWS - 1 && MAZE[r + 1][c] === 0) paths++;
+          if (c > 0 && MAZE[r][c - 1] === 0) paths++;
+          if (c < COLS - 1 && MAZE[r][c + 1] === 0) paths++;
+          if (paths >= 3) {
+            const nx = OFFSET_X + c * CELL + CELL / 2;
+            const ny = OFFSET_Y + r * CELL + CELL / 2;
+            gfx.fillStyle(COLORS.NEON_BLUE, 0.08);
+            gfx.fillCircle(nx, ny, 3);
+          }
         }
       }
     }
@@ -144,6 +167,15 @@ export class PacmanScene extends BaseGameScene {
           pp.gridCol = c;
           pp.gridRow = r;
           this.powerPellets.add(pp);
+          this.tweens.add({
+            targets: pp,
+            scaleX: { from: 0.9, to: 1.2 },
+            scaleY: { from: 0.9, to: 1.2 },
+            alpha: { from: 0.7, to: 1 },
+            duration: 600,
+            yoyo: true,
+            repeat: -1,
+          });
           this.totalDots++;
         }
       }
@@ -161,6 +193,13 @@ export class PacmanScene extends BaseGameScene {
     this.pacman.wantsToMove = false;
     this.pacman.targetX = startPos.x;
     this.pacman.targetY = startPos.y;
+
+    this._pacTrailId = TrailSystem.createTrail(this, this.pacman, {
+      color: COLORS.NEON_YELLOW,
+      length: 4,
+      interval: 60,
+      size: 5,
+    });
   }
 
   createGhosts() {
@@ -186,6 +225,19 @@ export class PacmanScene extends BaseGameScene {
       ghost.eaten = false;
       ghost.personality = cfg.personality;
       this.ghosts.push(ghost);
+
+      const ghostColors = {
+        'ghost-red': COLORS.NEON_RED,
+        'ghost-pink': COLORS.NEON_PINK,
+        'ghost-cyan': COLORS.NEON_CYAN,
+        'ghost-orange': COLORS.NEON_ORANGE,
+      };
+      ghost._trailId = TrailSystem.createTrail(this, ghost, {
+        color: ghostColors[cfg.key] || COLORS.NEON_RED,
+        length: 3,
+        interval: 80,
+        size: 4,
+      });
     }
 
     this.vulnerableTimer = null;
@@ -442,11 +494,36 @@ export class PacmanScene extends BaseGameScene {
 
   activateVulnerableMode() {
     if (this.vulnerableTimer) this.vulnerableTimer.remove(false);
+    if (this._ghostGlitchTimers) {
+      this._ghostGlitchTimers.forEach(t => t.remove(false));
+    }
+    this._ghostGlitchTimers = [];
 
     for (const ghost of this.ghosts) {
       if (!ghost.eaten) {
         ghost.vulnerable = true;
-        ghost.setTint(0x0000ff);
+        ghost.setTint(0x0066ff);
+        ghost.setAlpha(0.4);
+        // Flicker tween for glitch state
+        const flicker = this.tweens.add({
+          targets: ghost,
+          alpha: { from: 0.2, to: 0.6 },
+          duration: 200,
+          yoyo: true,
+          repeat: -1,
+        });
+        ghost._flickerTween = flicker;
+        // Local noise around ghost
+        const noiseTimer = this.time.addEvent({
+          delay: 500,
+          loop: true,
+          callback: () => {
+            if (ghost.vulnerable && !ghost.eaten && ghost.active) {
+              GlitchEffect.localNoise(this, ghost.x, ghost.y, 18, 200);
+            }
+          },
+        });
+        this._ghostGlitchTimers.push(noiseTimer);
       }
     }
 
@@ -454,6 +531,15 @@ export class PacmanScene extends BaseGameScene {
       for (const ghost of this.ghosts) {
         ghost.vulnerable = false;
         ghost.clearTint();
+        ghost.setAlpha(1);
+        if (ghost._flickerTween) {
+          ghost._flickerTween.stop();
+          ghost._flickerTween = null;
+        }
+      }
+      if (this._ghostGlitchTimers) {
+        this._ghostGlitchTimers.forEach(t => t.remove(false));
+        this._ghostGlitchTimers = [];
       }
       this.vulnerableTimer = null;
     });
@@ -483,7 +569,25 @@ export class PacmanScene extends BaseGameScene {
 
   eatGhost(ghost) {
     ghost.eaten = true;
-    ghost.setVisible(false);
+    ghost.vulnerable = false;
+    if (ghost._flickerTween) {
+      ghost._flickerTween.stop();
+      ghost._flickerTween = null;
+    }
+
+    // Scale-pop + debris burst on eat
+    this.tweens.add({
+      targets: ghost,
+      scaleX: 1.4, scaleY: 1.4,
+      duration: 60,
+      onComplete: () => {
+        ghost.setVisible(false);
+        ghost.setScale(1);
+      },
+    });
+    DebrisSystem.deathBurst(this, ghost.x, ghost.y, 'medium', {
+      colors: [COLORS.NEON_BLUE, COLORS.NEON_CYAN, COLORS.WHITE],
+    });
     this.score.award('ghost');
     SFX.eatGhost();
 

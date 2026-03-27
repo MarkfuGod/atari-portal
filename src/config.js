@@ -130,3 +130,75 @@ export const AUDIO_REACTIVE = {
   VIGNETTE_PULSE: 0.12,
   ENERGY_TINT_ALPHA: 0.06,
 };
+
+export const GAME_LORE = {
+  PacmanScene: {
+    layer: 1,
+    title: 'CYBER-SNACKER',
+    firewallType: 'SURVEILLANCE GRID',
+    description: 'Navigate the monitoring maze. Consume data nodes to weaken daemon patrols.',
+  },
+  BreakoutScene: {
+    layer: 2,
+    title: 'DATA WALL BREAKER',
+    firewallType: 'ENCRYPTION WALL',
+    description: 'Shatter the data modules protecting the outer encryption layer.',
+  },
+  SpaceInvadersScene: {
+    layer: 3,
+    title: 'CYBER SWARM',
+    firewallType: 'MALWARE DEFENSE',
+    description: 'Repel the autonomous virus swarm defending the mid-layer firewall.',
+  },
+  FroggerScene: {
+    layer: 4,
+    title: 'FIREWALL RUNNER',
+    firewallType: 'DATA HIGHWAY',
+    description: 'Cross the high-speed data streams without getting flagged.',
+  },
+  AsteroidsScene: {
+    layer: 5,
+    title: 'DATA FRAGMENT PURGE',
+    firewallType: 'DEBRIS FIELD',
+    description: 'Clear corrupted data fragments blocking access to the inner core.',
+  },
+  TetrisScene: {
+    layer: 6,
+    title: 'CORE RECONSTRUCTION',
+    firewallType: 'CORE MATRIX',
+    description: 'Reassemble the core data blocks to override the final lock.',
+  },
+};
+
+export const CYBER_GRID = {
+  PacmanScene: {
+    streamColor: 0x3d5afe,
+    streamDensity: 0.3,
+    shader: 'cybermaze',
+  },
+  BreakoutScene: {
+    streamColor: 0x00f0ff,
+    streamDensity: 0.5,
+    shader: 'datamatrix',
+  },
+  SpaceInvadersScene: {
+    streamColor: 0xff1744,
+    streamDensity: 0.4,
+    shader: 'cyberswarm',
+  },
+  FroggerScene: {
+    streamColor: 0x39ff14,
+    streamDensity: 0.35,
+    shader: 'bitstream',
+  },
+  AsteroidsScene: {
+    streamColor: 0xb845ff,
+    streamDensity: 0.25,
+    shader: 'datavoid',
+  },
+  TetrisScene: {
+    streamColor: 0x00f0ff,
+    streamDensity: 0.45,
+    shader: 'datacore',
+  },
+};

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, COLORS, HACK_CONFIG, AUDIO_REACTIVE as AR } from '../config.js';
+import { GAME_WIDTH, GAME_HEIGHT, COLORS, HACK_CONFIG, AUDIO_REACTIVE as AR, CYBER_GRID } from '../config.js';
 import { GameManager } from '../core/GameManager.js';
 import { PortalSystem } from '../core/PortalSystem.js';
 import { ScoreManager } from '../core/ScoreManager.js';
@@ -66,6 +66,8 @@ export class BaseGameScene extends Phaser.Scene {
     }
 
     this.drawGameGrid();
+    this._initDataStream();
+    this._setCRTIntensity();
 
     BGM.playForScene(this, this.sceneKey);
 
@@ -84,12 +86,61 @@ export class BaseGameScene extends Phaser.Scene {
   _drawGridLines(alpha) {
     const g = this._gridGfx;
     g.clear();
+    const dashLen = 4;
+    const gapLen = 6;
     g.lineStyle(1, COLORS.GRID_LINE, alpha);
     for (let x = 0; x < GAME_WIDTH; x += 40) {
-      g.strokeLineShape(new Phaser.Geom.Line(x, 32, x, GAME_HEIGHT));
+      for (let y = 32; y < GAME_HEIGHT; y += dashLen + gapLen) {
+        const endY = Math.min(y + dashLen, GAME_HEIGHT);
+        g.strokeLineShape(new Phaser.Geom.Line(x, y, x, endY));
+      }
     }
     for (let y = 32; y < GAME_HEIGHT; y += 40) {
-      g.strokeLineShape(new Phaser.Geom.Line(0, y, GAME_WIDTH, y));
+      for (let x = 0; x < GAME_WIDTH; x += dashLen + gapLen) {
+        const endX = Math.min(x + dashLen, GAME_WIDTH);
+        g.strokeLineShape(new Phaser.Geom.Line(x, y, endX, y));
+      }
+    }
+  }
+
+  _initDataStream() {
+    const cfg = CYBER_GRID[this.sceneKey];
+    if (!cfg) return;
+    const density = cfg.streamDensity || 0.3;
+    const color = '#' + (cfg.streamColor || COLORS.NEON_CYAN).toString(16).padStart(6, '0');
+    const colCount = Math.floor(density * 15);
+    const chars = '01';
+
+    this._dataStreamItems = [];
+    for (let i = 0; i < colCount; i++) {
+      const cx = Math.random() * GAME_WIDTH;
+      const speed = 30 + Math.random() * 50;
+      const len = 3 + Math.floor(Math.random() * 5);
+      for (let j = 0; j < len; j++) {
+        const ch = chars[Math.floor(Math.random() * chars.length)];
+        const a = (0.06 + (1 - j / len) * 0.08) * density;
+        const txt = this.add.text(cx, -20 - j * 14, ch, {
+          fontSize: '10px', fontFamily: 'monospace', color,
+        }).setAlpha(a).setDepth(1);
+        this._dataStreamItems.push({ obj: txt, speed, startX: cx });
+        this.tweens.add({
+          targets: txt,
+          y: GAME_HEIGHT + 20,
+          duration: ((GAME_HEIGHT + 40) / speed) * 1000,
+          delay: Math.random() * 4000 + j * 100,
+          repeat: -1,
+          onRepeat: () => { txt.y = -20; txt.x = cx + (Math.random() - 0.5) * 10; },
+        });
+      }
+    }
+  }
+
+  _setCRTIntensity() {
+    const crt = this.scene.get('CRTOverlay');
+    if (crt && crt.setIntensity) {
+      const diff = GameManager.state.difficulty || 1;
+      const intensity = Math.min(1, (diff - 1) * 0.2 + 0.3);
+      crt.setIntensity(intensity);
     }
   }
 
@@ -472,6 +523,12 @@ export class BaseGameScene extends Phaser.Scene {
     try {
       if (this._portalHint) { this._portalHint.destroy(); this._portalHint = null; }
     } catch (_) { this._portalHint = null; }
+    try {
+      if (this._dataStreamItems) {
+        this._dataStreamItems.forEach(d => { try { d.obj.destroy(); } catch (_) {} });
+        this._dataStreamItems = null;
+      }
+    } catch (_) {}
     try {
       GameManager.mutationSystem.cleanupScene(this);
     } catch (_) { /* safe */ }

@@ -3,6 +3,10 @@ import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../../config.js';
 import { GameManager } from '../../core/GameManager.js';
 import { BaseGameScene } from '../BaseGameScene.js';
 import SFX from '../../core/SFXManager.js';
+import GlitchEffect from '../../vfx/GlitchEffect.js';
+import ArcadeFX from '../../vfx/ArcadeFX.js';
+import TrailSystem from '../../vfx/TrailSystem.js';
+import DebrisSystem from '../../vfx/DebrisSystem.js';
 
 const ROTATION_SPEED = 4;
 const THRUST = 220;
@@ -43,6 +47,8 @@ export class AsteroidsScene extends BaseGameScene {
     this.playerAlive = true;
     this.ufoSprite = null;
     this.ufoTimer = 0;
+    this.waveCount = 1;
+    this._spawningWave = false;
 
     this.createShip();
     this.spawnWave(INITIAL_ASTEROIDS);
@@ -73,6 +79,10 @@ export class AsteroidsScene extends BaseGameScene {
   }
 
   spawnWave(count) {
+    ArcadeFX.callout(this, this.waveCount === 1 ? 'ASTEROID FIELD' : `WAVE ${this.waveCount}`, GAME_WIDTH / 2, TOP + 34, {
+      color: COLORS.NEON_CYAN,
+      fontSize: '18px',
+    });
     for (let i = 0; i < count; i++) {
       let x, y;
       do {
@@ -115,6 +125,14 @@ export class AsteroidsScene extends BaseGameScene {
         yoyo: true,
         repeat: -1,
       });
+      this.tweens.add({
+        targets: obj,
+        scaleX: 1.12,
+        scaleY: 1.12,
+        duration: 380,
+        yoyo: true,
+        repeat: -1,
+      });
       obj.setData('origColor', true);
       if (!this.textures.exists(cfg.texture)) {
         obj.setStrokeStyle(2, COLORS.PORTAL_GLOW);
@@ -139,6 +157,17 @@ export class AsteroidsScene extends BaseGameScene {
 
     this.ufoSprite = this.add.rectangle(sx, uy, 22, 10, COLORS.RED);
     this.ufoSprite.setData('dir', fromLeft ? 1 : -1);
+    ArcadeFX.callout(this, 'UFO INBOUND', GAME_WIDTH / 2, uy - 16, {
+      color: COLORS.NEON_RED,
+      fontSize: '16px',
+    });
+    ArcadeFX.flash(this, sx, uy, {
+      color: COLORS.RED,
+      radius: 16,
+      alpha: 0.28,
+      duration: 220,
+      shape: 'rect',
+    });
   }
 
   update(time, delta) {
@@ -160,7 +189,13 @@ export class AsteroidsScene extends BaseGameScene {
     this.glitch.checkDataLeakCollection(this.ship.x, this.ship.y);
 
     if (this.asteroids.length === 0 && !this.portalTriggered) {
-      this.spawnWave(INITIAL_ASTEROIDS + 1);
+      if (!this._spawningWave) {
+        this._spawningWave = true;
+        this.waveCount += 1;
+        ArcadeFX.screenTint(this, { color: COLORS.NEON_CYAN, alpha: 0.08, duration: 220 });
+        this.spawnWave(INITIAL_ASTEROIDS + 1);
+        this._spawningWave = false;
+      }
     }
   }
 
@@ -212,15 +247,38 @@ export class AsteroidsScene extends BaseGameScene {
 
     const bx = this.ship.x - Math.cos(this.ship.rotation) * 16;
     const by = this.ship.y - Math.sin(this.ship.rotation) * 16;
-    const flame = this.add.circle(bx, by, 3, COLORS.ORANGE);
+
+    // Alternating white/cyan flame
+    const flameColor = Math.random() > 0.5 ? COLORS.WHITE : COLORS.NEON_CYAN;
+    const flame = this.add.circle(bx, by, 3.5, flameColor);
+    flame.setBlendMode(Phaser.BlendModes.ADD);
+    const streak = this.add.rectangle(bx, by, 4, 16, COLORS.NEON_CYAN, 0.25)
+      .setRotation(this.ship.rotation + Math.PI / 2)
+      .setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({
       targets: flame,
       alpha: 0,
-      scaleX: 0.2,
-      scaleY: 0.2,
-      duration: 120,
+      scaleX: 0.15,
+      scaleY: 0.15,
+      duration: 140,
       onComplete: () => flame.destroy(),
     });
+    this.tweens.add({
+      targets: streak,
+      alpha: 0,
+      scaleY: 0.1,
+      duration: 130,
+      onComplete: () => streak.destroy(),
+    });
+
+    if (!this._shipTrailId && this.ship && this.ship.active) {
+      this._shipTrailId = TrailSystem.createTrail(this, this.ship, {
+        color: COLORS.NEON_CYAN,
+        length: 5,
+        interval: 50,
+        size: 4,
+      });
+    }
   }
 
   spawnBulletAtAngle(angle) {
@@ -259,6 +317,13 @@ export class AsteroidsScene extends BaseGameScene {
     for (const ang of angles) {
       this.spawnBulletAtAngle(ang);
     }
+    ArcadeFX.burst(this, this.ship.x + Math.cos(this.ship.rotation) * 12, this.ship.y + Math.sin(this.ship.rotation) * 12, {
+      count: 8,
+      distance: 28,
+      duration: 180,
+      colors: [COLORS.NEON_CYAN, COLORS.WHITE],
+      size: 4,
+    });
     SFX.shoot();
   }
 
@@ -340,9 +405,14 @@ export class AsteroidsScene extends BaseGameScene {
 
         const ux = this.ufoSprite.x;
         const uy = this.ufoSprite.y;
-        this.score.award('ufo');
+        this.score.award('ufo', 1, ux, uy);
         SFX.ufoHit();
         this.flashEffect(ux, uy, COLORS.RED);
+        this.explosionEffect(ux, uy, 14, [COLORS.RED, COLORS.NEON_ORANGE, COLORS.WHITE], 74, 420);
+        ArcadeFX.callout(this, 'UFO DOWN', ux, uy - 18, {
+          color: COLORS.NEON_RED,
+          fontSize: '16px',
+        });
         this.ufoSprite.destroy();
         this.ufoSprite = null;
         return;
@@ -376,10 +446,16 @@ export class AsteroidsScene extends BaseGameScene {
     a.destroy();
     this.asteroids.splice(asteroidIndex, 1);
 
-    this.score.award(size);
+    this.score.award(size, 1, ax, ay);
     this.destroyedCount++;
     this.flashEffect(ax, ay, COLORS.WHITE);
     SFX[size === 'large' ? 'asteroidHitLg' : 'asteroidHit']();
+
+    // Tiered debris explosions
+    const intensity = size === 'large' ? 'heavy' : size === 'medium' ? 'medium' : 'light';
+    DebrisSystem.deathBurst(this, ax, ay, intensity, {
+      colors: [COLORS.NEON_PURPLE, COLORS.NEON_CYAN, COLORS.NEON_MAGENTA, COLORS.WHITE],
+    });
 
     if (GameManager.mutationSystem.enemyDropCoins) {
       GameManager.addCoins(1);
@@ -388,7 +464,13 @@ export class AsteroidsScene extends BaseGameScene {
 
     if (isPortal) {
       this.portalTriggered = true;
-      this.explosionEffect(ax, ay);
+      this.explosionEffect(ax, ay, 18, [COLORS.PORTAL_GLOW, COLORS.PORTAL_CORE, COLORS.CYAN, COLORS.WHITE], 92, 620);
+      GlitchEffect.screenTear(this, 260);
+      ArcadeFX.callout(this, 'DIMENSIONAL RIFT', ax, ay - 26, {
+        color: COLORS.NEON_MAGENTA,
+        fontSize: '18px',
+      });
+      ArcadeFX.screenTint(this, { color: COLORS.NEON_MAGENTA, alpha: 0.12, duration: 240 });
       this.time.delayedCall(400, () => this.triggerPortal(ax, ay));
       return;
     }
@@ -415,10 +497,18 @@ export class AsteroidsScene extends BaseGameScene {
     } while (Phaser.Math.Distance.Between(x, y, this.ship.x, this.ship.y) < 150);
 
     this.spawnAsteroid(x, y, 'large', true);
+    ArcadeFX.callout(this, 'RIFT ROCK', x, y - 24, {
+      color: COLORS.NEON_MAGENTA,
+      fontSize: '16px',
+    });
+    GlitchEffect.digitalNoise(this, 160);
   }
 
   onShipHit() {
     this.flashEffect(this.ship.x, this.ship.y, COLORS.RED);
+    this.explosionEffect(this.ship.x, this.ship.y, 16, [COLORS.NEON_RED, COLORS.NEON_ORANGE, COLORS.WHITE], 62, 360);
+    GlitchEffect.chromaticAberration(this, 180);
+    ArcadeFX.screenTint(this, { color: COLORS.NEON_RED, alpha: 0.12, duration: 180 });
     const alive = this.onPlayerDeath();
 
     if (alive) {
@@ -436,10 +526,20 @@ export class AsteroidsScene extends BaseGameScene {
     this.shipVy = 0;
     this.ship.rotation = -Math.PI / 2;
     this.invincible = true;
+    this.ship.setVisible(true);
+    this.ship.setScale(0.6);
+    ArcadeFX.flash(this, this.ship.x, this.ship.y, {
+      color: COLORS.NEON_CYAN,
+      radius: 18,
+      alpha: 0.35,
+      duration: 200,
+    });
 
     this.tweens.add({
       targets: this.ship,
       alpha: { from: 0.2, to: 1 },
+      scaleX: 1,
+      scaleY: 1,
       duration: 120,
       yoyo: true,
       repeat: Math.floor(INVINCIBILITY_MS / 240),
@@ -470,34 +570,25 @@ export class AsteroidsScene extends BaseGameScene {
   }
 
   flashEffect(x, y, color) {
-    const flash = this.add.circle(x, y, 12, color);
-    this.tweens.add({
-      targets: flash,
-      alpha: 0,
-      scaleX: 2.5,
-      scaleY: 2.5,
-      duration: 250,
-      onComplete: () => flash.destroy(),
+    ArcadeFX.flash(this, x, y, {
+      color,
+      radius: 12,
+      alpha: 0.42,
+      duration: 230,
+      scale: 2.5,
+      shape: 'circle',
     });
   }
 
-  explosionEffect(x, y) {
-    for (let i = 0; i < 12; i++) {
-      const angle = (Math.PI * 2 * i) / 12;
-      const particle = this.add.circle(
-        x, y, 4,
-        Phaser.Utils.Array.GetRandom([COLORS.PORTAL_GLOW, COLORS.PORTAL_CORE, COLORS.CYAN])
-      );
-      this.tweens.add({
-        targets: particle,
-        x: x + Math.cos(angle) * 70,
-        y: y + Math.sin(angle) * 70,
-        alpha: 0,
-        duration: 600,
-        ease: 'Power2',
-        onComplete: () => particle.destroy(),
-      });
-    }
+  explosionEffect(x, y, count = 12, colors = [COLORS.PORTAL_GLOW, COLORS.PORTAL_CORE, COLORS.CYAN], distance = 70, duration = 600) {
+    ArcadeFX.burst(this, x, y, {
+      count,
+      colors,
+      distance,
+      duration,
+      size: 7,
+      shape: 'circle',
+    });
   }
 
   shutdown() {
