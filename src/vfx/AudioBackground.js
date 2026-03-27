@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import AudioReactive from '../core/AudioReactiveSystem.js';
+import ThreeSceneOverlay from './ThreeSceneOverlay.js';
 
 const GAME_W = 800;
 
@@ -1492,6 +1493,7 @@ const AudioBackground = {
     this._current = 'synthwave';
 
     this._clock = new THREE.Clock();
+    ThreeSceneOverlay.init(vw, vh, pr);
     const loop = () => { requestAnimationFrame(loop); this._update(); };
     requestAnimationFrame(loop);
 
@@ -1501,6 +1503,7 @@ const AudioBackground = {
   setScene(sceneName, mode) {
     if (!this._ready) return;
     if (this._warpActive) return;
+    ThreeSceneOverlay.setScene(sceneName);
     const target = SCENE_MAP[sceneName] || (mode && MODE_BG[mode]) || 'universe';
     if (target === this._current) return;
     this._current = target;
@@ -1527,6 +1530,7 @@ const AudioBackground = {
 
   stopWarp(targetScene, mode) {
     this._warpActive = false;
+    ThreeSceneOverlay.setScene(targetScene);
     const target = (targetScene && SCENE_MAP[targetScene])
       || (mode && MODE_BG[mode])
       || this._preWarpTarget || 'universe';
@@ -1585,6 +1589,7 @@ const AudioBackground = {
     }
 
     this.renderer.render(this.scene, this.camera);
+    ThreeSceneOverlay.update(u.iTime.value, ar);
   },
 
   _resize() {
@@ -1607,6 +1612,7 @@ const AudioBackground = {
     for (const key in this._materials) {
       this._materials[key].uniforms.iResolution.value.set(vw * pr, vh * pr);
     }
+    ThreeSceneOverlay.resize(vw, vh, pr);
   },
 };
 

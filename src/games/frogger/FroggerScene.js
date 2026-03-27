@@ -36,6 +36,7 @@ export class FroggerScene extends BaseGameScene {
     this.laneFx = this.add.graphics().setDepth(0.5);
 
     this.drawLanes();
+    this.drawLaneLabels();
     this.createLilyPads();
     this.createCars();
     this.createLogs();
@@ -65,6 +66,25 @@ export class FroggerScene extends BaseGameScene {
 
     g.fillStyle(0x0a2a1e);
     g.fillRect(0, TOP_Y + 12 * LANE_H, GAME_WIDTH, LANE_H);
+  }
+
+  drawLaneLabels() {
+    const labels = [
+      { row: 1, text: 'BIT-STREAM RIVER  > 1GB/s', color: '#69f3ff' },
+      { row: 2, text: 'HIGHWAY OF FAST DATA  > 10GB/s', color: '#9fffb3' },
+      { row: 4, text: 'HOLOGRAPHIC PLATFORMS', color: '#8de7ff' },
+      { row: 8, text: 'HIGHWAY OF FAST DATA  > 10GB/s', color: '#ffd36d' },
+      { row: 10, text: 'DATA SPEED  // VEHICLES', color: '#ffb36d' },
+      { row: 12, text: 'STARTING FROG', color: '#7cff7e' },
+    ];
+
+    labels.forEach(({ row, text, color }) => {
+      this.add.text(92, laneCenter(row) - 12, text, {
+        fontSize: '9px',
+        fontFamily: 'monospace',
+        color,
+      }).setDepth(1.8).setAlpha(0.55);
+    });
   }
 
   createLilyPads() {
