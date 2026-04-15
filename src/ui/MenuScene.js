@@ -370,11 +370,11 @@ export class MenuScene extends Phaser.Scene {
       const name = GAME_NAMES[sceneKey];
       const y = topY + 40 + i * 30;
       const txt = this.add.text(cx, y, `${i + 1}. ${name}`, {
-        fontSize: '13px', fontFamily: 'monospace', color: '#7777aa',
+        fontSize: '13px', fontFamily: 'monospace', color: sceneKey === 'SnakeGame' ? '#00f0ff' : '#7777aa',
       }).setOrigin(0.5).setDepth(101).setInteractive({ useHandCursor: true });
 
       txt.on('pointerover', () => { txt.setColor(cyan); SFX.menuSelect(); });
-      txt.on('pointerout', () => txt.setColor('#7777aa'));
+      txt.on('pointerout', () => txt.setColor(sceneKey === 'SnakeGame' ? '#00f0ff' : '#7777aa'));
       txt.on('pointerdown', () => this.startDebugGame(sceneKey, i));
       this.levelSelectItems.push(txt);
     });

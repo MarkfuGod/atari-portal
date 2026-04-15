@@ -36,7 +36,104 @@ export class BootScene extends Phaser.Scene {
     this.genMothership();
     this.genPixel();
     this.genPowerUps();
+    this.genSnakeTextures();
+    this.genPinballTextures();
+    this.genFallDownTextures();
   }
+
+  // 生成贪吃蛇相关纹理：蛇头、蛇身、食物，均带霓虹光效
+  // 生成贪吃蛇相关纹理：蛇头、蛇身、食物，均带霓虹光效
+  genSnakeTextures() {
+    // SNAKE HEAD - 青色发光
+    {
+      const size = 32;
+      const tex = this.textures.createCanvas('snake-head', size, size);
+      const canvas = tex.getSourceImage();
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.clearRect(0, 0, size, size);
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = '#00f0ff';
+      ctx.fillStyle = '#00f0ff';
+      ctx.beginPath();
+      ctx.arc(size/2, size/2, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      tex.refresh(); // <--- 关键修复：通知WebGL刷新纹理
+    }
+    // SNAKE BODY - 稍暗青色
+    {
+      const size = 28;
+      const tex = this.textures.createCanvas('snake-body', size, size);
+      const canvas = tex.getSourceImage();
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.clearRect(0, 0, size, size);
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = '#0099aa';
+      ctx.fillStyle = '#0099aa';
+      ctx.beginPath();
+      ctx.arc(size/2, size/2, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      tex.refresh(); // <--- 关键修复
+    }
+    // SNAKE FOOD - 品红色发光
+    {
+      const size = 24;
+      const tex = this.textures.createCanvas('snake-food', size, size);
+      const canvas = tex.getSourceImage();
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.clearRect(0, 0, size, size);
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#ff00e6';
+      ctx.fillStyle = '#ff00e6';
+      ctx.beginPath();
+      ctx.arc(size/2, size/2, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      tex.refresh(); // <--- 关键修复
+    }
+
+    // 1. VIRUS (红色数据包) - 方案A
+    {
+      const size = 24;
+      const tex = this.textures.createCanvas('food-virus', size, size);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = '#ff1744';
+      ctx.fillStyle = '#ff1744';
+      ctx.beginPath(); ctx.arc(size/2, size/2, 10, 0, Math.PI*2); ctx.fill();
+      tex.refresh();
+    }
+
+    // 2. PATCH (绿色补丁) - 方案A
+    {
+      const size = 24;
+      const tex = this.textures.createCanvas('food-patch', size, size);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = '#39ff14';
+      ctx.fillStyle = '#39ff14';
+      ctx.fillRect(4, 10, 16, 4); ctx.fillRect(10, 4, 4, 16); // 画一个十字
+      tex.refresh();
+    }
+
+    // 3. RESIDUE (残留身体) - 机制2 & 3
+    {
+      const size = 20;
+      const tex = this.textures.createCanvas('snake-residue', size, size);
+      const ctx = tex.getContext();
+      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(2, 2, 16, 16); // 画一个空心框，表示这是“虚影”
+      tex.refresh();
+    }
+  }
+
+  
 
   genPortalPellet() {
     const g = this.make.graphics({ add: false });
@@ -377,5 +474,129 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     this.scene.start('MenuScene');
+  }
+
+  genPinballTextures() {
+    // 1. 弹珠 - 强力白光+青色光晕
+    {
+      const size = 32;
+      const tex = this.textures.createCanvas('pin-ball', size, size);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 15; ctx.shadowColor = '#00f0ff';
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(size/2, size/2, 10, 0, Math.PI*2); ctx.fill();
+      tex.refresh();
+    }
+    // 2. 拨杆 (Flipper) - 霓虹紫色圆角矩形
+    {
+      const tex = this.textures.createCanvas('flipper', 100, 24);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 10; ctx.shadowColor = '#b845ff';
+      ctx.fillStyle = '#b845ff';
+      ctx.beginPath(); ctx.roundRect(0, 0, 100, 24, 12); ctx.fill();
+      tex.refresh();
+    }
+    // 3. 霓虹圈撞击器 (Ring Bumper) - 粉色呼吸光圈
+    {
+      const size = 64;
+      const tex = this.textures.createCanvas('bumper-ring', size, size);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 15; ctx.shadowColor = '#ff00e6';
+      ctx.strokeStyle = '#ff00e6'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(size/2, size/2, 26, 0, Math.PI*2); ctx.stroke();
+      tex.refresh();
+    }
+    // 4. 下落靶 (Drop Target) - 霓虹绿色矩形
+    {
+      const tex = this.textures.createCanvas('target-drop', 40, 20);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 12; ctx.shadowColor = '#39ff14';
+      ctx.fillStyle = '#39ff14';
+      ctx.beginPath(); ctx.roundRect(0, 0, 40, 20, 4); ctx.fill();
+      tex.refresh();
+    }
+    // 5. 霓虹白色边界线 (用于画复杂的机台轨道)
+    {
+      const tex = this.textures.createCanvas('pinball-bound', 20, 20);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 8; ctx.shadowColor = '#ffffff';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(4, 4, 12, 12);
+      tex.refresh();
+    }
+
+    // 6. 巡逻 BOSS (猩红色的浮空菱形核心)
+    {
+      const size = 60;
+      const tex = this.textures.createCanvas('boss', size, size);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 15; ctx.shadowColor = '#ff1744';
+      ctx.fillStyle = '#ff1744';
+      ctx.beginPath(); ctx.moveTo(30, 5); ctx.lineTo(55, 30); ctx.lineTo(30, 55); ctx.lineTo(5, 30); ctx.fill();
+      tex.refresh();
+    }
+    // 7. 虫洞 (紫红双色嵌套的旋转星门)
+    {
+      const size = 80;
+      const tex = this.textures.createCanvas('wormhole', size, size);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 20; ctx.shadowColor = '#8e2de2';
+      ctx.strokeStyle = '#4a00e0'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(40, 40, 30, 0, Math.PI*2); ctx.stroke();
+      ctx.strokeStyle = '#ff00e6'; ctx.lineWidth = 2; // 内圈亮粉色
+      ctx.beginPath(); ctx.arc(40, 40, 15, 0, Math.PI*2); ctx.stroke();
+      tex.refresh();
+    }
+  }
+  genFallDownTextures() {
+    const drawNeonPlat = (key, color, isGlitch = false, hasSpikes = false) => {
+      const tex = this.textures.createCanvas(key, 100, 20);
+      const ctx = tex.getContext();
+      // 黑暗模式下依然清晰的边缘发光
+      ctx.shadowBlur = 10; ctx.shadowColor = color;
+      ctx.strokeStyle = color; ctx.lineWidth = 3;
+      ctx.strokeRect(2, 2, 96, 16);
+      
+      // 内部半透明填充
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.3;
+      ctx.fillRect(2, 2, 96, 16);
+      ctx.globalAlpha = 1.0;
+
+      if (hasSpikes) { // 伤害平台：红色的尖刺
+        ctx.fillStyle = '#ff0000';
+        for(let i=5; i<95; i+=15) {
+          ctx.beginPath(); ctx.moveTo(i, 2); ctx.lineTo(i+5, -8); ctx.lineTo(i+10, 2); ctx.fill();
+        }
+      }
+      if (isGlitch) { // 薛定谔平台：随机杂色噪点
+        ctx.fillStyle = '#ffffff';
+        for(let i=0; i<20; i++) ctx.fillRect(Math.random()*100, Math.random()*20, 2, 2);
+      }
+      tex.refresh();
+    };
+
+    // 1. 正常 (霓虹青色)
+    drawNeonPlat('plat-normal', '#00f0ff');
+    // 2. 易碎 (警示橙黄)
+    drawNeonPlat('plat-fragile', '#ffaa00');
+    // 3. 伤害 (腥红尖刺)
+    drawNeonPlat('plat-damage', '#ff1744', false, true);
+    // 4. 音轨律动 (迷幻洋红)
+    drawNeonPlat('plat-audio', '#ff00e6');
+    // 5. 薛定谔故障 (不稳定紫白)
+    drawNeonPlat('plat-glitch', '#b845ff', true);
+
+    // 6. 重力反转充能球 (闪耀的绿色核心)
+    {
+      const tex = this.textures.createCanvas('grav-orb', 24, 24);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 15; ctx.shadowColor = '#39ff14';
+      ctx.fillStyle = '#39ff14';
+      ctx.beginPath(); ctx.arc(12, 12, 6, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(12, 12, 10, 0, Math.PI*2); ctx.stroke();
+      tex.refresh();
+    }
   }
 }
