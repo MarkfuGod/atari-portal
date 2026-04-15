@@ -39,6 +39,9 @@ export const GAME_ORDER = [
   'FroggerScene',
   'AsteroidsScene',
   'TetrisScene',
+  'SnakeGame',
+  'PinballScene',
+  'FallDownScene',
 ];
 
 export const GAME_NAMES = {
@@ -48,6 +51,9 @@ export const GAME_NAMES = {
   FroggerScene: 'FROGGER',
   AsteroidsScene: 'ASTEROIDS',
   TetrisScene: 'TETRIS',
+  SnakeGame: 'SNAKE',
+  PinballScene: 'PINBALL',
+  FallDownScene: 'CYBER-SHAFT',
 };
 
 export const PORTAL_CONFIG = {
