@@ -20,6 +20,9 @@ Built with **Phaser 3** and **Vite**. Every texture is generated via Canvas at b
 | **FROGGER** | Fill 3 lily pads to unlock a portal pad | Arrow keys / WASD |
 | **ASTEROIDS** | Destroy 15 asteroids to spawn a portal asteroid | Arrow keys / WASD, Space to fire |
 | **TETRIS** | Clear 15 lines (or 8 lines + a Tetris) to open a rift | Arrow keys / WASD, Space for hard drop |
+| **CYBER-PINBALL** | Defeat the moving Boss (5 hits) or reach score limit | A/D to flip (4 flippers), Space to plunge |
+| **CYBER-SHAFT** | Survive until the platform speed reaches its maximum | A/D to move |
+| **CYBER-SNAKE** | Grow your snake to length 10 | Arrow keys / WASD |
 
 ## Modes
 
@@ -104,6 +107,9 @@ src/
     ├── frogger/         # Lane-crossing with logs & cars
     ├── asteroids/       # Inertial ship with wrap-around
     └── tetris/          # Standard guideline with SRS wall kicks
+    ├── pinball/         # Cyberpunk pinball with multiball & wormholes
+    ├── falldown/        # High-speed descent with gravity inversion
+    └── snake/           # Grid snake with screen-wrap and laser waves
 ```
 
 ## License

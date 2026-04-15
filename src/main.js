@@ -15,7 +15,10 @@ import { SpaceInvadersScene } from './games/space-invaders/SpaceInvadersScene.js
 import { FroggerScene } from './games/frogger/FroggerScene.js';
 import { AsteroidsScene } from './games/asteroids/AsteroidsScene.js';
 import { TetrisScene } from './games/tetris/TetrisScene.js';
+import { SnakeGame } from './games/snake/SnakeGame.js';
 import AudioBackground from './vfx/AudioBackground.js';
+import { PinballScene } from './games/pinball/PinballScene.js';
+import { FallDownScene } from './games/falldown/FallDownScene.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -47,7 +50,10 @@ const config = {
     FroggerScene,
     AsteroidsScene,
     TetrisScene,
-  ]
+    SnakeGame,
+    PinballScene,
+    FallDownScene,
+]
 };
 
 new Phaser.Game(config);
