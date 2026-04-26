@@ -8,6 +8,7 @@ import ArcadeFX from '../../vfx/ArcadeFX.js';
 import DebrisSystem from '../../vfx/DebrisSystem.js';
 import RippleEffect from '../../vfx/RippleEffect.js';
 import TrailSystem from '../../vfx/TrailSystem.js';
+import CyberSceneFX from '../../vfx/CyberSceneFX.js';
 
 const TOP_Y = 28;
 const LANE_H = 44;
@@ -35,6 +36,7 @@ export class FroggerScene extends BaseGameScene {
     this.dead = false;
     this.laneFx = this.add.graphics().setDepth(0.5);
 
+    this.drawCyberArena();
     this.drawLanes();
     this.drawLaneLabels();
     this.createLilyPads();
@@ -44,8 +46,26 @@ export class FroggerScene extends BaseGameScene {
     this.setupInput();
   }
 
+  drawCyberArena() {
+    CyberSceneFX.drawCircuitBackdrop(this, {
+      primary: COLORS.NEON_GREEN,
+      secondary: COLORS.NEON_CYAN,
+      accent: COLORS.NEON_YELLOW,
+      top: TOP_Y,
+      bottom: GAME_HEIGHT - 34,
+      density: 1,
+    });
+    CyberSceneFX.drawBinarySideData(this, { color: COLORS.NEON_GREEN, alpha: 0.1, columns: 2 });
+    CyberSceneFX.drawHudFrame(this, {
+      title: 'FROGGER: FIREWALL RUNNER',
+      subtitle: 'BITSTREAM RIVER // DATA HIGHWAY',
+      primary: COLORS.NEON_GREEN,
+      accent: COLORS.NEON_CYAN,
+    });
+  }
+
   drawLanes() {
-    const g = this.add.graphics();
+    const g = this.add.graphics().setDepth(-1);
 
     g.fillStyle(0x0a1a3a);
     g.fillRect(0, TOP_Y, GAME_WIDTH, LANE_H * 6);
@@ -90,6 +110,7 @@ export class FroggerScene extends BaseGameScene {
   createLilyPads() {
     this.pads = LILY_POSITIONS.map(x => {
       const pad = this.add.image(x, laneCenter(0), 'lilypad').setDepth(1);
+      pad.setBlendMode(Phaser.BlendModes.ADD);
       pad.filled = false;
       pad.isPortal = false;
       return pad;
@@ -109,6 +130,7 @@ export class FroggerScene extends BaseGameScene {
       const gap = GAME_WIDTH / lane.count;
       for (let i = 0; i < lane.count; i++) {
         const car = this.add.image(gap * i + gap / 2, laneCenter(lane.row), lane.tex).setDepth(2);
+        car.setBlendMode(Phaser.BlendModes.ADD);
         car.speed = lane.speed * lane.dir;
         car.setFlipX(lane.dir < 0);
         this.cars.push(car);
@@ -129,6 +151,7 @@ export class FroggerScene extends BaseGameScene {
       const gap = GAME_WIDTH / lane.count;
       for (let i = 0; i < lane.count; i++) {
         const log = this.add.image(gap * i + gap / 2, laneCenter(lane.row), 'log').setDepth(1);
+        log.setBlendMode(Phaser.BlendModes.ADD);
         if (lane.wide) log.setScale(2, 1);
         log.speed = lane.speed * lane.dir;
         log.row = lane.row;
@@ -139,7 +162,16 @@ export class FroggerScene extends BaseGameScene {
   }
 
   createFrog() {
-    this.frog = this.add.image(GAME_WIDTH / 2, laneCenter(12), 'frog').setDepth(5);
+    this.frogGlow = this.add.circle(GAME_WIDTH / 2, laneCenter(12), 20, COLORS.NEON_GREEN, 0.16)
+      .setDepth(4)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    this.frog = this.add.image(GAME_WIDTH / 2, laneCenter(12), 'frog').setDepth(5).setBlendMode(Phaser.BlendModes.ADD);
+    this._frogTrailId = TrailSystem.createTrail(this, this.frog, {
+      color: COLORS.NEON_GREEN,
+      length: 6,
+      interval: 48,
+      size: 5,
+    });
   }
 
   setupInput() {
@@ -165,6 +197,16 @@ export class FroggerScene extends BaseGameScene {
     this.powerUps.checkCollection(this.frog.x, this.frog.y);
     this.glitch.checkDataLeakCollection(this.frog.x, this.frog.y);
     this.tryEnterPortal(this.frog.x, this.frog.y);
+    this.syncNeonActors(time);
+  }
+
+  syncNeonActors(time) {
+    if (this.frogGlow && this.frog) {
+      this.frogGlow.setPosition(this.frog.x, this.frog.y);
+      this.frogGlow.setScale(1 + Math.sin(time * 0.012) * 0.1);
+    }
+    this.cars.forEach((car, i) => car.setAlpha(0.82 + Math.sin(time * 0.006 + i) * 0.12));
+    this.logs.forEach((log, i) => log.setAlpha(0.72 + Math.sin(time * 0.005 + i) * 0.1));
   }
 
   moveCars(dt) {

@@ -55,12 +55,18 @@ export class MenuScene extends Phaser.Scene {
     this.drawDataStreams();
     this.drawBinaryPanels();
     this.drawAccessFrame();
+    this.drawMenuStage3D();
     this.drawCentralSigil();
+    this.drawReadabilityPanels();
     this._menuButtons = [];
 
     this.titleText = this.add.text(cx, 32, 'SYSTEM ACCESS: CYBER ARCADE', {
-      fontSize: '24px', fontFamily: 'monospace', color: cyan,
-    }).setOrigin(0.5).setDepth(12);
+      fontSize: '24px',
+      fontFamily: 'monospace',
+      color: '#eafdff',
+      stroke: '#00111a',
+      strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(42);
     NeonGlow.applyTextGlow(this, this.titleText, COLORS.NEON_MAGENTA);
     this._beatTitleActive = false;
 
@@ -71,14 +77,22 @@ export class MenuScene extends Phaser.Scene {
     });
 
     const subtitle = this.add.text(cx, 58, '[NEON WANDERER] // AETHELGARD FIREWALL ACCESS TERMINAL // [ACTIVE]', {
-      fontSize: '10px', fontFamily: 'monospace', color: cyan,
-    }).setOrigin(0.5).setAlpha(0).setDepth(10);
+      fontSize: '10px',
+      fontFamily: 'monospace',
+      color: '#d8fbff',
+      stroke: '#00111a',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setAlpha(0).setDepth(41);
 
     this.typewriterEffect(subtitle, '[NEON WANDERER] // AETHELGARD FIREWALL ACCESS TERMINAL // [ACTIVE]', 18);
 
     this.add.text(cx, 78, 'v2.0 // NEON RETRO OVERHAUL', {
-      fontSize: '10px', fontFamily: 'monospace', color: purple,
-    }).setOrigin(0.5).setAlpha(0.65).setDepth(10);
+      fontSize: '10px',
+      fontFamily: 'monospace',
+      color: '#d9c2ff',
+      stroke: '#080014',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setAlpha(0.85).setDepth(41);
 
     MENU_BUTTONS.forEach((btn) => {
       const action = () => {
@@ -98,8 +112,12 @@ export class MenuScene extends Phaser.Scene {
     }
 
     this.add.text(cx, GAME_HEIGHT - 20, 'ARROWS/WASD MOVE | SPACE ACTION | H HACK | N SKIP | ESC PAUSE', {
-      fontSize: '10px', fontFamily: 'monospace', color: '#5c659b',
-    }).setOrigin(0.5).setDepth(10);
+      fontSize: '10px',
+      fontFamily: 'monospace',
+      color: '#c9d7ff',
+      stroke: '#030712',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(41);
 
     const borderG = this.add.graphics().setDepth(10);
     NeonGlow.cornerAccents(borderG, 10, 10, GAME_WIDTH - 20, GAME_HEIGHT - 20, 20, COLORS.NEON_CYAN, 1);
@@ -118,6 +136,61 @@ export class MenuScene extends Phaser.Scene {
 
     this._gridAlpha = 0.25;
     this._sigilPulse = 0;
+    this._menuFocus = { x: 0, y: 0 };
+    this.events.once('shutdown', this.resetMenuPerspective, this);
+  }
+
+  drawMenuStage3D() {
+    const g = this.add.graphics().setDepth(4);
+    const cx = GAME_WIDTH / 2;
+
+    g.fillStyle(0x030613, 0.58);
+    g.fillTriangle(cx - 330, 500, cx + 330, 500, cx + 245, 98);
+    g.fillTriangle(cx - 330, 500, cx - 245, 98, cx + 245, 98);
+
+    g.lineStyle(9, COLORS.NEON_CYAN, 0.035);
+    g.strokeTriangle(cx - 330, 500, cx + 330, 500, cx + 245, 98);
+    g.strokeTriangle(cx - 330, 500, cx - 245, 98, cx + 245, 98);
+
+    for (let i = 0; i < 9; i++) {
+      const t = i / 8;
+      const y = Phaser.Math.Linear(112, 492, t);
+      const half = Phaser.Math.Linear(245, 330, t);
+      g.lineStyle(1, COLORS.NEON_CYAN, 0.08 + t * 0.04);
+      g.lineBetween(cx - half, y, cx + half, y);
+    }
+
+    for (let i = -5; i <= 5; i++) {
+      const topX = cx + i * 48;
+      const bottomX = cx + i * 66;
+      g.lineStyle(1, i === 0 ? COLORS.NEON_MAGENTA : COLORS.NEON_CYAN, i === 0 ? 0.12 : 0.06);
+      g.lineBetween(topX, 108, bottomX, 496);
+    }
+
+    const leftFin = this.add.graphics().setDepth(5);
+    leftFin.fillStyle(0x06101f, 0.72);
+    leftFin.fillTriangle(82, 170, 190, 130, 142, 470);
+    leftFin.lineStyle(2, COLORS.NEON_PURPLE, 0.32);
+    leftFin.strokeTriangle(82, 170, 190, 130, 142, 470);
+
+    const rightFin = this.add.graphics().setDepth(5);
+    rightFin.fillStyle(0x06101f, 0.72);
+    rightFin.fillTriangle(GAME_WIDTH - 82, 170, GAME_WIDTH - 190, 130, GAME_WIDTH - 142, 470);
+    rightFin.lineStyle(2, COLORS.NEON_PURPLE, 0.32);
+    rightFin.strokeTriangle(GAME_WIDTH - 82, 170, GAME_WIDTH - 190, 130, GAME_WIDTH - 142, 470);
+  }
+
+  drawReadabilityPanels() {
+    const g = this.add.graphics().setDepth(39);
+    g.fillStyle(0x020612, 0.78);
+    g.fillRoundedRect(122, 18, 556, 72, 10);
+    g.lineStyle(1, COLORS.NEON_CYAN, 0.28);
+    g.strokeRoundedRect(122, 18, 556, 72, 10);
+
+    g.fillStyle(0x020612, 0.7);
+    g.fillRoundedRect(110, GAME_HEIGHT - 36, 580, 26, 8);
+    g.lineStyle(1, COLORS.NEON_PURPLE, 0.24);
+    g.strokeRoundedRect(110, GAME_HEIGHT - 36, 580, 26, 8);
   }
 
   // ─── Audio-reactive update loop ───────────────────────────────
@@ -125,6 +198,7 @@ export class MenuScene extends Phaser.Scene {
   update(_time, delta) {
     AudioReactive.update(delta);
     const ar = AudioReactive;
+    this.updateMenuFocus();
     this._sigilPulse += delta * 0.006;
     this._drawCentralSigilFrame(ar._connected ? ar.energy * 0.35 : 0.12);
     if (!ar._connected) return;
@@ -137,6 +211,43 @@ export class MenuScene extends Phaser.Scene {
       this._spawnBeatBurst(ar.beatIntensity);
       this.cameras.main.shake(100, AR.BEAT_CAMERA_SHAKE * ar.beatIntensity);
     }
+  }
+
+  updateMenuFocus() {
+    const pointer = this.input.activePointer;
+    const tx = pointer ? pointer.x : GAME_WIDTH / 2;
+    const ty = pointer ? pointer.y : GAME_HEIGHT / 2;
+    this._menuFocus.x = Phaser.Math.Linear(this._menuFocus.x, tx, 0.08);
+    this._menuFocus.y = Phaser.Math.Linear(this._menuFocus.y, ty, 0.08);
+    AudioBackground.setFocus('MenuScene', this._menuFocus.x, this._menuFocus.y);
+    this.updateMenuPerspective();
+  }
+
+  updateMenuPerspective() {
+    const canvas = this.game?.canvas;
+    if (!canvas) return;
+    const fx = Phaser.Math.Clamp(((this._menuFocus.x / GAME_WIDTH) - 0.5) * 2, -1, 1);
+    const fy = Phaser.Math.Clamp(((this._menuFocus.y / GAME_HEIGHT) - 0.5) * 2, -1, 1);
+    const depth = (Math.abs(fx) + Math.abs(fy)) * 12;
+    canvas.style.transformOrigin = '50% 50%';
+    canvas.style.transformStyle = 'preserve-3d';
+    canvas.style.willChange = 'transform';
+    canvas.style.transform = [
+      'perspective(1000px)',
+      `rotateX(${(-fy * 5.5).toFixed(3)}deg)`,
+      `rotateY(${(fx * 7).toFixed(3)}deg)`,
+      `translateZ(${depth.toFixed(2)}px)`,
+      `translate(${(-fx * 5).toFixed(2)}px, ${(fy * 4).toFixed(2)}px)`,
+    ].join(' ');
+  }
+
+  resetMenuPerspective() {
+    const canvas = this.game?.canvas;
+    if (!canvas) return;
+    canvas.style.transform = '';
+    canvas.style.transformOrigin = '';
+    canvas.style.transformStyle = '';
+    canvas.style.willChange = '';
   }
 
   // ─── Spectrum ring ────────────────────────────────────────────
@@ -418,23 +529,40 @@ export class MenuScene extends Phaser.Scene {
       burst: COLORS.WHITE,
     };
 
-    const effect = this.add.graphics().setDepth(8);
-    const panel = this.add.graphics().setDepth(9);
-    const zone = this.add.zone(x, y, width, height).setOrigin(0.5).setDepth(11).setInteractive({ useHandCursor: true });
+    const shadow = this.add.graphics().setDepth(19);
+    const effect = this.add.graphics().setDepth(20);
+    const panel = this.add.graphics().setDepth(21);
+    const zone = this.add.zone(x, y, width, height).setOrigin(0.5).setDepth(34).setInteractive({ useHandCursor: true });
     const txt = this.add.text(x, y, label, {
       fontSize: label.includes('\n') ? '26px' : '28px',
       fontFamily: 'monospace',
       align: 'center',
       color: '#ffffff',
+      stroke: '#030712',
+      strokeThickness: 5,
       lineSpacing: -6,
-    }).setOrigin(0.5).setDepth(10);
+    }).setOrigin(0.5).setDepth(33);
 
     const drawPanel = (hover = false) => {
+      shadow.clear();
+      shadow.fillStyle(0x000000, hover ? 0.5 : 0.38);
+      shadow.fillRoundedRect(x - width / 2 + 24, y - height / 2 + 30, width - 30, height - 28, 16);
+      shadow.fillStyle(ringColorMap[theme], hover ? 0.12 : 0.07);
+      shadow.fillRoundedRect(x - width / 2 + 12, y - height / 2 + 20, width - 26, height - 22, 16);
+
       panel.clear();
-      panel.lineStyle(1.5, ringColorMap[theme], hover ? 0.55 : 0.22);
-      panel.strokeRoundedRect(x - width / 2 + 28, y - height / 2 + 28, width - 56, height - 56, 10);
-      panel.lineStyle(4, ringColorMap[theme], hover ? 0.08 : 0.04);
-      panel.strokeRoundedRect(x - width / 2 + 24, y - height / 2 + 24, width - 48, height - 48, 12);
+      panel.fillStyle(0x020612, hover ? 0.9 : 0.78);
+      panel.fillRoundedRect(x - width / 2 + 16, y - height / 2 + 16, width - 32, height - 32, 14);
+      panel.fillStyle(0xffffff, hover ? 0.09 : 0.05);
+      panel.fillRoundedRect(x - width / 2 + 24, y - height / 2 + 23, width - 48, 13, 7);
+      panel.fillStyle(0x000000, hover ? 0.25 : 0.18);
+      panel.fillRoundedRect(x - width / 2 + 24, y + height / 2 - 39, width - 48, 14, 7);
+      panel.lineStyle(5, ringColorMap[theme], hover ? 0.14 : 0.08);
+      panel.strokeRoundedRect(x - width / 2 + 14, y - height / 2 + 14, width - 28, height - 28, 16);
+      panel.lineStyle(1.5, ringColorMap[theme], hover ? 0.82 : 0.45);
+      panel.strokeRoundedRect(x - width / 2 + 22, y - height / 2 + 22, width - 44, height - 44, 10);
+      panel.lineStyle(1, COLORS.WHITE, hover ? 0.2 : 0.1);
+      panel.strokeRoundedRect(x - width / 2 + 30, y - height / 2 + 30, width - 60, height - 60, 8);
     };
 
     this.drawButtonEffect(effect, x, y, theme, false);
@@ -442,7 +570,7 @@ export class MenuScene extends Phaser.Scene {
 
     zone.on('pointerover', () => {
       txt.setColor(cyan);
-      txt.setScale(1.04);
+      txt.setScale(1.06);
       NeonGlow.applyTextGlow(this, txt, ringColorMap[theme]);
       this.drawButtonEffect(effect, x, y, theme, true);
       drawPanel(true);
@@ -451,13 +579,13 @@ export class MenuScene extends Phaser.Scene {
     zone.on('pointerout', () => {
       txt.setColor('#ffffff');
       txt.setScale(1);
-      txt.setStyle({ ...txt.style, shadow: {} });
+      txt.setStyle({ ...txt.style, shadow: {}, stroke: '#030712', strokeThickness: 5 });
       this.drawButtonEffect(effect, x, y, theme, false);
       drawPanel(false);
     });
     zone.on('pointerdown', callback);
 
-    return { effect, panel, zone, txt };
+    return { shadow, effect, panel, zone, txt };
   }
 
   drawButtonEffect(g, x, y, theme, hover) {
@@ -527,10 +655,12 @@ export class MenuScene extends Phaser.Scene {
     const panelY = GAME_HEIGHT / 2;
     const topY = panelY - panelH / 2;
 
-    const bg = this.add.rectangle(cx, panelY, 340, panelH, COLORS.HUD_BG, 0.95).setDepth(100);
+    const shadow = this.add.rectangle(cx + 14, panelY + 16, 350, panelH + 10, 0x000000, 0.42).setDepth(99);
+    const glow = this.add.rectangle(cx, panelY, 350, panelH + 10, COLORS.NEON_CYAN, 0.08).setDepth(99).setBlendMode(Phaser.BlendModes.ADD);
+    const bg = this.add.rectangle(cx, panelY, 340, panelH, COLORS.HUD_BG, 0.96).setDepth(100);
     const borderG = this.add.graphics().setDepth(100);
     NeonGlow.strokeRect(borderG, cx - 170, topY, 340, panelH, COLORS.NEON_CYAN, 1, 0.4);
-    this.levelSelectItems.push(bg, borderG);
+    this.levelSelectItems.push(shadow, glow, bg, borderG);
 
     const header = this.add.text(cx, topY + 14, '// LEVEL SELECT', {
       fontSize: '13px', fontFamily: 'monospace', color: cyan,
@@ -572,10 +702,12 @@ export class MenuScene extends Phaser.Scene {
     this.shopItems = [];
 
     const cx = GAME_WIDTH / 2;
-    const bg = this.add.rectangle(cx, 350, 500, 280, COLORS.HUD_BG, 0.95).setDepth(100);
+    const shadow = this.add.rectangle(cx + 16, 366, 512, 292, 0x000000, 0.45).setDepth(99);
+    const glow = this.add.rectangle(cx, 350, 512, 292, COLORS.NEON_PURPLE, 0.09).setDepth(99).setBlendMode(Phaser.BlendModes.ADD);
+    const bg = this.add.rectangle(cx, 350, 500, 280, COLORS.HUD_BG, 0.96).setDepth(100);
     const borderG = this.add.graphics().setDepth(100);
     NeonGlow.strokeRect(borderG, cx - 250, 210, 500, 280, COLORS.NEON_PURPLE, 1, 0.5);
-    this.shopItems.push(bg, borderG);
+    this.shopItems.push(shadow, glow, bg, borderG);
 
     const title = this.add.text(cx, 225, '// PERMANENT UPGRADES', {
       fontSize: '14px', fontFamily: 'monospace', color: '#b845ff',

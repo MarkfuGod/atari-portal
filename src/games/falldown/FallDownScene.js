@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import { BaseGameScene } from '../BaseGameScene.js';
-import { GAME_WIDTH, GAME_HEIGHT } from '../../config.js';
+import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../../config.js';
 import SFX from '../../core/SFXManager.js';
 import AudioReactive from '../../core/AudioReactiveSystem.js';
+import CyberSceneFX from '../../vfx/CyberSceneFX.js';
 
 export class FallDownScene extends BaseGameScene {
   constructor() {
@@ -24,6 +25,8 @@ export class FallDownScene extends BaseGameScene {
     this.hp = 3; 
     this.runScore = 0; 
 
+    this.drawCyberArena();
+
     // ==========================================
     // 🕹️ 物理群组构建
     // ==========================================
@@ -32,8 +35,11 @@ export class FallDownScene extends BaseGameScene {
 
     this.player = this.physics.add.sprite(GAME_WIDTH / 2, 200, 'pinball-bound').setTint(0x00f0ff);
     this.player.setCollideWorldBounds(false); 
-    this.player.setBounce(0.1).setDepth(60);
+    this.player.setBounce(0.1).setDepth(60).setBlendMode(Phaser.BlendModes.ADD);
     this.player.setMaxVelocity(1000, 800);
+    this.playerGlow = this.add.circle(this.player.x, this.player.y, 22, COLORS.NEON_CYAN, 0.16)
+      .setDepth(58)
+      .setBlendMode(Phaser.BlendModes.ADD);
 
     // ==========================================
     // ⚡ 碰撞注册
@@ -58,6 +64,24 @@ export class FallDownScene extends BaseGameScene {
     for(let i=0; i<6; i++) {
       this.spawnPlatform(400 + i * 150, true);
     }
+  }
+
+  drawCyberArena() {
+    CyberSceneFX.drawCircuitBackdrop(this, {
+      primary: COLORS.NEON_CYAN,
+      secondary: COLORS.NEON_MAGENTA,
+      accent: COLORS.NEON_GREEN,
+      top: 32,
+      bottom: GAME_HEIGHT - 34,
+      density: 1,
+    });
+    CyberSceneFX.drawBinarySideData(this, { color: COLORS.NEON_CYAN, alpha: 0.1, columns: 2 });
+    CyberSceneFX.drawHudFrame(this, {
+      title: 'CYBER-SHAFT: FALLDOWN',
+      subtitle: 'PLATFORM STREAM // GRAVITY ORBS',
+      primary: COLORS.NEON_CYAN,
+      accent: COLORS.NEON_MAGENTA,
+    });
   }
 
   setupControls() {
@@ -167,6 +191,21 @@ export class FallDownScene extends BaseGameScene {
     
     this.setPlayerPosition(this.player.x, this.player.y);
     this.tryEnterPortal(this.player.x, this.player.y);
+    this.syncNeonActors(time);
+  }
+
+  syncNeonActors(time) {
+    if (this.playerGlow && this.player) {
+      this.playerGlow.setPosition(this.player.x, this.player.y);
+      this.playerGlow.setScale(1 + Math.sin(time * 0.012) * 0.12);
+      this.playerGlow.setVisible(this.player.visible);
+    }
+    this.platforms.getChildren().forEach((plat, i) => {
+      if (plat.active) plat.setAlpha(0.78 + Math.sin(time * 0.006 + i) * 0.16);
+    });
+    this.orbs.getChildren().forEach((orb, i) => {
+      if (orb.active) orb.setAlpha(0.85 + Math.sin(time * 0.01 + i) * 0.14);
+    });
   }
 
   onHitPlatform(player, plat) {

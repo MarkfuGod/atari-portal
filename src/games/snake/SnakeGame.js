@@ -3,6 +3,7 @@ import { BaseGameScene } from '../BaseGameScene.js';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../../config.js';
 import SFX from '../../core/SFXManager.js';
 import AudioReactive from '../../core/AudioReactiveSystem.js';
+import CyberSceneFX from '../../vfx/CyberSceneFX.js';
 
 // --- 配置常量 ---
 const CELL = 24;
@@ -48,6 +49,8 @@ export class SnakeGame extends BaseGameScene {
     this.speedMult = 1;      // 病毒带来的临时加速
     this.virusTimer = 0;
 
+    this.drawCyberArena();
+
     // 初始生成蛇身 (长度 4)
     for (let i = 0; i < 4; i++) {
       this.snake.push({ col: 10 - i, row: 11 });
@@ -56,9 +59,36 @@ export class SnakeGame extends BaseGameScene {
     // 视觉组
     this.snakeGroup = this.add.group();
     this.waveGraphics = this.add.graphics().setDepth(5);
+    this.headGlow = this.add.circle(0, 0, 18, COLORS.NEON_GREEN, 0.16)
+      .setDepth(4)
+      .setBlendMode(Phaser.BlendModes.ADD);
     
     this.setupInput();
     this.spawnFood();
+  }
+
+  drawCyberArena() {
+    CyberSceneFX.drawCircuitBackdrop(this, {
+      primary: COLORS.NEON_GREEN,
+      secondary: COLORS.NEON_CYAN,
+      accent: COLORS.NEON_MAGENTA,
+      top: 32,
+      bottom: GAME_HEIGHT - 34,
+      density: 1.1,
+    });
+    CyberSceneFX.drawBinarySideData(this, { color: COLORS.NEON_GREEN, alpha: 0.1, columns: 2 });
+    CyberSceneFX.drawHudFrame(this, {
+      title: 'SNAKE: VIRAL TRACE',
+      subtitle: 'SONIC WAVES // PATCH NODES',
+      primary: COLORS.NEON_GREEN,
+      accent: COLORS.NEON_MAGENTA,
+    });
+    CyberSceneFX.drawHoloPanel(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, COLS * CELL + 24, ROWS * CELL + 24, {
+      primary: COLORS.NEON_GREEN,
+      accent: COLORS.NEON_CYAN,
+      depth: -4,
+      tilt: 0,
+    });
   }
 
   update(time, delta) {
@@ -92,9 +122,16 @@ export class SnakeGame extends BaseGameScene {
     // 报告玩家位置
     const headPos = cellToWorld(this.snake[0].col, this.snake[0].row);
     this.setPlayerPosition(headPos.x, headPos.y);
+    this.syncNeonActors(time, headPos);
     this.tryEnterPortal(headPos.x, headPos.y);
 
     this.render();
+  }
+
+  syncNeonActors(time, headPos) {
+    if (!this.headGlow) return;
+    this.headGlow.setPosition(headPos.x, headPos.y);
+    this.headGlow.setScale(1 + Math.sin(time * 0.012) * 0.12);
   }
 
   handleInput() {
@@ -277,6 +314,7 @@ export class SnakeGame extends BaseGameScene {
     if (this.foodSprite) this.foodSprite.destroy();
     const pos = cellToWorld(col, row);
     this.foodSprite = this.add.image(pos.x, pos.y, key).setBlendMode(Phaser.BlendModes.ADD);
+    this.foodSprite.setDepth(7);
     this.tweens.add({ targets: this.foodSprite, scale: 1.2, duration: 300, yoyo: true, repeat: -1 });
   }
 
@@ -296,6 +334,7 @@ export class SnakeGame extends BaseGameScene {
       const pos = cellToWorld(seg.col, seg.row);
       const key = i === 0 ? 'snake-head' : 'snake-body';
       const sprite = this.add.image(pos.x, pos.y, key).setBlendMode(Phaser.BlendModes.ADD);
+      sprite.setDepth(i === 0 ? 8 : 6);
       if (i > 0) {
         const scale = 1 - (i / this.snake.length) * 0.4;
         sprite.setScale(scale).setAlpha(scale);

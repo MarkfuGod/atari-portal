@@ -7,6 +7,7 @@ import GlitchEffect from '../../vfx/GlitchEffect.js';
 import ArcadeFX from '../../vfx/ArcadeFX.js';
 import TrailSystem from '../../vfx/TrailSystem.js';
 import DebrisSystem from '../../vfx/DebrisSystem.js';
+import CyberSceneFX from '../../vfx/CyberSceneFX.js';
 
 const ROTATION_SPEED = 4;
 const THRUST = 220;
@@ -50,22 +51,77 @@ export class AsteroidsScene extends BaseGameScene {
     this.waveCount = 1;
     this._spawningWave = false;
 
+    this.drawAsteroidArena();
     this.createShip();
     this.spawnWave(INITIAL_ASTEROIDS);
     this.setupInput();
     this.scheduleUfo();
   }
 
+  drawAsteroidArena() {
+    CyberSceneFX.drawCircuitBackdrop(this, {
+      primary: COLORS.NEON_PURPLE,
+      secondary: COLORS.NEON_CYAN,
+      accent: COLORS.NEON_MAGENTA,
+      top: TOP,
+      bottom: GAME_HEIGHT - 34,
+      density: 0.8,
+      depth: -35,
+    });
+    CyberSceneFX.drawBinarySideData(this, { color: COLORS.NEON_CYAN, alpha: 0.11, columns: 2 });
+    CyberSceneFX.drawHudFrame(this, {
+      title: 'ASTEROIDS: DATA FRAGMENT PURGE',
+      subtitle: 'SPLIT // FLICKER // PURGE',
+      primary: COLORS.NEON_CYAN,
+      accent: COLORS.NEON_PURPLE,
+    });
+    CyberSceneFX.drawHoloPanel(this, 105, 420, 130, 120, {
+      primary: COLORS.NEON_YELLOW,
+      accent: COLORS.NEON_CYAN,
+      depth: -5,
+      tilt: -0.18,
+    });
+    CyberSceneFX.drawHoloPanel(this, GAME_WIDTH - 105, 420, 130, 120, {
+      primary: COLORS.NEON_YELLOW,
+      accent: COLORS.NEON_CYAN,
+      depth: -5,
+      tilt: 0.18,
+    });
+
+    this._riftGfx = this.add.graphics().setDepth(-12);
+    const cx = GAME_WIDTH / 2;
+    const cy = TOP + 225;
+    for (let i = 0; i < 5; i++) {
+      this._riftGfx.lineStyle(10 - i * 1.4, i % 2 ? COLORS.NEON_CYAN : COLORS.NEON_PURPLE, 0.03 + i * 0.025);
+      this._riftGfx.strokeCircle(cx + i * 4, cy - i * 2, 65 + i * 20);
+    }
+    this._riftCore = this.add.circle(cx, cy, 28, COLORS.NEON_PURPLE, 0.14)
+      .setDepth(-10)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({
+      targets: this._riftCore,
+      scaleX: { from: 1, to: 1.55 },
+      scaleY: { from: 1, to: 1.55 },
+      alpha: { from: 0.1, to: 0.28 },
+      duration: 1300,
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
   createShip() {
     const cx = GAME_WIDTH / 2;
     const cy = TOP + (GAME_HEIGHT - TOP) / 2;
 
+    this.shipGlow = this.add.circle(cx, cy, 22, COLORS.NEON_CYAN, 0.16)
+      .setDepth(8)
+      .setBlendMode(Phaser.BlendModes.ADD);
     if (this.textures.exists('asteroid-ship')) {
       this.ship = this.add.sprite(cx, cy, 'asteroid-ship');
     } else {
       this.ship = this.add.triangle(cx, cy, 12, 0, -8, -8, -8, 8, COLORS.WHITE);
     }
-    this.ship.setDepth(10);
+    this.ship.setDepth(12).setBlendMode(Phaser.BlendModes.ADD);
     this.ship.rotation = -Math.PI / 2;
   }
 
@@ -116,6 +172,9 @@ export class AsteroidsScene extends BaseGameScene {
 
     obj.rotation = Math.random() * Math.PI * 2;
     obj.setData('rotSpeed', (Math.random() - 0.5) * 2);
+    obj.setDepth(10).setBlendMode(Phaser.BlendModes.ADD);
+    obj.setTint(isPortal ? COLORS.NEON_MAGENTA : COLORS.NEON_PURPLE);
+    this.decorateAsteroid(obj, cfg, isPortal);
 
     if (isPortal) {
       this.tweens.add({
@@ -141,6 +200,27 @@ export class AsteroidsScene extends BaseGameScene {
 
     this.asteroids.push(obj);
     return obj;
+  }
+
+  decorateAsteroid(obj, cfg, isPortal) {
+    const glowColor = isPortal ? COLORS.NEON_MAGENTA : COLORS.NEON_PURPLE;
+    const glow = this.add.circle(obj.x, obj.y, cfg.radius * 1.65, glowColor, isPortal ? 0.2 : 0.12)
+      .setDepth(7)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    const cracks = this.add.graphics().setDepth(11);
+    cracks.lineStyle(isPortal ? 2 : 1.2, isPortal ? COLORS.NEON_MAGENTA : COLORS.NEON_CYAN, isPortal ? 0.72 : 0.42);
+    for (let i = 0; i < 4; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const inner = cfg.radius * (0.15 + Math.random() * 0.25);
+      const outer = cfg.radius * (0.72 + Math.random() * 0.2);
+      cracks.beginPath();
+      cracks.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
+      cracks.lineTo(Math.cos(a + 0.2) * outer, Math.sin(a + 0.2) * outer);
+      cracks.strokePath();
+    }
+    cracks.setPosition(obj.x, obj.y).setRotation(obj.rotation).setBlendMode(Phaser.BlendModes.ADD);
+    obj.setData('glow', glow);
+    obj.setData('cracks', cracks);
   }
 
   scheduleUfo() {
@@ -239,6 +319,11 @@ export class AsteroidsScene extends BaseGameScene {
     this.ship.x += this.shipVx * dt;
     this.ship.y += this.shipVy * dt;
     this.wrapPosition(this.ship);
+    if (this.shipGlow) {
+      this.shipGlow.setPosition(this.ship.x, this.ship.y);
+      this.shipGlow.setScale(1 + Math.sin(this.time.now * 0.01) * 0.12);
+      this.shipGlow.setVisible(this.ship.visible);
+    }
   }
 
   showThrustFlicker() {
@@ -250,11 +335,17 @@ export class AsteroidsScene extends BaseGameScene {
 
     // Alternating white/cyan flame
     const flameColor = Math.random() > 0.5 ? COLORS.WHITE : COLORS.NEON_CYAN;
-    const flame = this.add.circle(bx, by, 3.5, flameColor);
+    const flame = this.add.circle(bx, by, 5.5, flameColor, 0.95);
     flame.setBlendMode(Phaser.BlendModes.ADD);
-    const streak = this.add.rectangle(bx, by, 4, 16, COLORS.NEON_CYAN, 0.25)
+    const streak = this.add.rectangle(bx, by, 6, 30, COLORS.NEON_CYAN, 0.32)
       .setRotation(this.ship.rotation + Math.PI / 2)
       .setBlendMode(Phaser.BlendModes.ADD);
+    const hotCore = this.add.rectangle(bx, by, 2, 18, COLORS.WHITE, 0.55)
+      .setRotation(this.ship.rotation + Math.PI / 2)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setDepth(13);
+    flame.setDepth(13);
+    streak.setDepth(12);
     this.tweens.add({
       targets: flame,
       alpha: 0,
@@ -269,6 +360,13 @@ export class AsteroidsScene extends BaseGameScene {
       scaleY: 0.1,
       duration: 130,
       onComplete: () => streak.destroy(),
+    });
+    this.tweens.add({
+      targets: hotCore,
+      alpha: 0,
+      scaleY: 0.05,
+      duration: 110,
+      onComplete: () => hotCore.destroy(),
     });
 
     if (!this._shipTrailId && this.ship && this.ship.active) {
@@ -291,6 +389,7 @@ export class AsteroidsScene extends BaseGameScene {
     } else {
       bullet = this.add.circle(nx, ny, 2.5, COLORS.CYAN);
     }
+    bullet.setDepth(14).setBlendMode(Phaser.BlendModes.ADD);
 
     bullet.setData('vx', Math.cos(angle) * BULLET_SPEED + this.shipVx);
     bullet.setData('vy', Math.sin(angle) * BULLET_SPEED + this.shipVy);
@@ -358,6 +457,20 @@ export class AsteroidsScene extends BaseGameScene {
       a.y += a.getData('vy') * dt * spd;
       a.rotation += a.getData('rotSpeed') * dt;
       this.wrapPosition(a);
+      this.syncAsteroidVisuals(a);
+    }
+  }
+
+  syncAsteroidVisuals(a) {
+    const glow = a.getData('glow');
+    const cracks = a.getData('cracks');
+    if (glow) {
+      glow.setPosition(a.x, a.y);
+      glow.setScale(1 + Math.sin(this.time.now * 0.006 + a.x) * 0.08);
+    }
+    if (cracks) {
+      cracks.setPosition(a.x, a.y);
+      cracks.setRotation(a.rotation);
     }
   }
 
@@ -439,10 +552,14 @@ export class AsteroidsScene extends BaseGameScene {
     const ay = a.y;
     const size = a.getData('size');
     const isPortal = a.getData('isPortal');
+    const glow = a.getData('glow');
+    const cracks = a.getData('cracks');
 
     bullet.destroy();
     this.bullets.splice(bulletIndex, 1);
 
+    if (glow) glow.destroy();
+    if (cracks) cracks.destroy();
     a.destroy();
     this.asteroids.splice(asteroidIndex, 1);
 
@@ -516,17 +633,20 @@ export class AsteroidsScene extends BaseGameScene {
     } else {
       this.playerAlive = false;
       this.ship.setVisible(false);
+      if (this.shipGlow) this.shipGlow.setVisible(false);
     }
   }
 
   respawnShip() {
     this.ship.x = GAME_WIDTH / 2;
     this.ship.y = TOP + (GAME_HEIGHT - TOP) / 2;
+    if (this.shipGlow) this.shipGlow.setPosition(this.ship.x, this.ship.y);
     this.shipVx = 0;
     this.shipVy = 0;
     this.ship.rotation = -Math.PI / 2;
     this.invincible = true;
     this.ship.setVisible(true);
+    if (this.shipGlow) this.shipGlow.setVisible(true);
     this.ship.setScale(0.6);
     ArcadeFX.flash(this, this.ship.x, this.ship.y, {
       color: COLORS.NEON_CYAN,
@@ -572,10 +692,10 @@ export class AsteroidsScene extends BaseGameScene {
   flashEffect(x, y, color) {
     ArcadeFX.flash(this, x, y, {
       color,
-      radius: 12,
-      alpha: 0.42,
-      duration: 230,
-      scale: 2.5,
+      radius: 18,
+      alpha: 0.5,
+      duration: 280,
+      scale: 3.2,
       shape: 'circle',
     });
   }

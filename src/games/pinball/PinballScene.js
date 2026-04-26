@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import { BaseGameScene } from '../BaseGameScene.js';
-import { GAME_WIDTH, GAME_HEIGHT } from '../../config.js';
+import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../../config.js';
 import SFX from '../../core/SFXManager.js';
 import AudioReactive from '../../core/AudioReactiveSystem.js';
+import CyberSceneFX from '../../vfx/CyberSceneFX.js';
 
 export class PinballScene extends BaseGameScene {
   constructor() {
@@ -20,6 +21,7 @@ export class PinballScene extends BaseGameScene {
     this.physics.world.gravity.y = 1200; 
     this.physics.world.setBoundsCollision(true, true, true, false);
 
+    this.drawCyberArena();
     this.tableBounds = this.physics.add.staticGroup();
     this.pearls = this.physics.add.staticGroup(); 
 
@@ -124,6 +126,24 @@ export class PinballScene extends BaseGameScene {
     this.spawnBall(765, 450);
   }
 
+  drawCyberArena() {
+    CyberSceneFX.drawCircuitBackdrop(this, {
+      primary: COLORS.NEON_MAGENTA,
+      secondary: COLORS.NEON_PURPLE,
+      accent: COLORS.WHITE,
+      top: 32,
+      bottom: GAME_HEIGHT - 34,
+      density: 0.9,
+    });
+    CyberSceneFX.drawBinarySideData(this, { color: COLORS.NEON_MAGENTA, alpha: 0.1, columns: 2 });
+    CyberSceneFX.drawHudFrame(this, {
+      title: 'PINBALL: WORMHOLE TABLE',
+      subtitle: 'MULTIBALL // BOSS CORE',
+      primary: COLORS.NEON_MAGENTA,
+      accent: COLORS.NEON_PURPLE,
+    });
+  }
+
   getCollisionPair(obj1, obj2) {
     const isObj1Ball = obj1.texture && obj1.texture.key === 'pin-ball';
     return isObj1Ball ? { ball: obj1, other: obj2 } : { ball: obj2, other: obj1 };
@@ -131,6 +151,7 @@ export class PinballScene extends BaseGameScene {
 
   spawnBall(x, y) {
     const ball = this.balls.create(x, y, 'pin-ball');
+    ball.setDepth(20).setBlendMode(Phaser.BlendModes.ADD);
     ball.setCollideWorldBounds(true);
     ball.setBounce(0.95);
     ball.body.setCircle(10, 6, 6);
@@ -220,6 +241,17 @@ export class PinballScene extends BaseGameScene {
       this.setPlayerPosition(activeBall.x, activeBall.y);
       this.balls.getChildren().forEach(b => this.tryEnterPortal(b.x, b.y));
     }
+    this.syncNeonActors(time);
+  }
+
+  syncNeonActors(time) {
+    this.balls.getChildren().forEach((ball, i) => {
+      if (!ball.active) return;
+      ball.setAlpha(0.88 + Math.sin(time * 0.01 + i) * 0.12);
+    });
+    [this.wormholeL, this.wormholeR, this.boss].forEach((obj, i) => {
+      if (obj && obj.active) obj.setScale(1 + Math.sin(time * 0.006 + i) * 0.04);
+    });
   }
 
   onHitBumper(obj1, obj2) {

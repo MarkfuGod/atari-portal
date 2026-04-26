@@ -58,6 +58,7 @@ export class BaseGameScene extends Phaser.Scene {
     this._prevBoostState = false;
     this._prevHackState = false;
     this._ending = false;
+    this._foregroundFocus = { x: 0, y: 0 };
 
     // Apply active mutation effects
     const ms = GameManager.mutationSystem;
@@ -213,6 +214,44 @@ export class BaseGameScene extends Phaser.Scene {
 
   setPlayerPosition(x, y) {
     this._playerPos = { x, y };
+    AudioBackground.setFocus(this.sceneKey, x, y);
+    this._updateForegroundParallax(x, y);
+  }
+
+  _updateForegroundParallax(x, y) {
+    if (!this.cameras?.main) return;
+    const nx = Phaser.Math.Clamp(((x / GAME_WIDTH) - 0.5) * 2, -1, 1);
+    const ny = Phaser.Math.Clamp(((y / GAME_HEIGHT) - 0.5) * 2, -1, 1);
+    this._foregroundFocus.x = Phaser.Math.Linear(this._foregroundFocus.x, nx, 0.08);
+    this._foregroundFocus.y = Phaser.Math.Linear(this._foregroundFocus.y, ny, 0.08);
+
+    const fx = this._foregroundFocus.x;
+    const fy = this._foregroundFocus.y;
+    const cam = this.cameras.main;
+    cam.setRotation(fx * 0.025);
+    cam.setZoom(1.015 + (Math.abs(fx) + Math.abs(fy)) * 0.012);
+    cam.centerOn(
+      GAME_WIDTH / 2 + fx * 18,
+      GAME_HEIGHT / 2 + fy * 12,
+    );
+
+    this._updateCanvasPerspective(fx, fy);
+  }
+
+  _updateCanvasPerspective(fx, fy) {
+    const canvas = this.game?.canvas;
+    if (!canvas) return;
+    const depth = (Math.abs(fx) + Math.abs(fy)) * 18;
+    canvas.style.transformOrigin = '50% 50%';
+    canvas.style.transformStyle = 'preserve-3d';
+    canvas.style.willChange = 'transform';
+    canvas.style.transform = [
+      'perspective(900px)',
+      `rotateX(${(-fy * 8).toFixed(3)}deg)`,
+      `rotateY(${(fx * 10).toFixed(3)}deg)`,
+      `translateZ(${depth.toFixed(2)}px)`,
+      `translate(${(-fx * 8).toFixed(2)}px, ${(fy * 6).toFixed(2)}px)`,
+    ].join(' ');
   }
 
   shakeCamera(intensity = 0.005, duration = 150) {
@@ -367,8 +406,7 @@ export class BaseGameScene extends Phaser.Scene {
       try { this.scene.sleep('HUDScene'); } catch (_) {}
       try { this.scene.sleep('CRTOverlay'); } catch (_) {}
 
-      if (GameManager.isLastGame && GameManager.state.mode === 'story'
-          && GameManager.state.gamesCompleted.length >= 6) {
+      if (GameManager.storyComplete) {
         this.scene.start('VictoryScene');
       } else {
         this.scene.start('ModSelectScene', { from: this.sceneKey, to: nextScene });
@@ -388,8 +426,7 @@ export class BaseGameScene extends Phaser.Scene {
 
       this._cleanupBeforeTransition();
 
-      if (GameManager.isLastGame && GameManager.state.mode === 'story'
-          && GameManager.state.gamesCompleted.length >= 6) {
+      if (GameManager.storyComplete) {
         this.scene.start('VictoryScene');
       } else {
         this.scene.start('ModSelectScene', { from: this.sceneKey, to: nextScene });
@@ -511,6 +548,15 @@ export class BaseGameScene extends Phaser.Scene {
   }
 
   shutdown() {
+    try {
+      const canvas = this.game?.canvas;
+      if (canvas) {
+        canvas.style.transform = '';
+        canvas.style.transformOrigin = '';
+        canvas.style.transformStyle = '';
+        canvas.style.willChange = '';
+      }
+    } catch (_) { /* safe */ }
     try {
       if (this.portal) { this.portal.destroy(); this.portal = null; }
     } catch (_) { this.portal = null; }

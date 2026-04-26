@@ -7,6 +7,7 @@ import GlitchEffect from '../../vfx/GlitchEffect.js';
 import NeonGlow from '../../vfx/NeonGlow.js';
 import DebrisSystem from '../../vfx/DebrisSystem.js';
 import ArcadeFX from '../../vfx/ArcadeFX.js';
+import CyberSceneFX from '../../vfx/CyberSceneFX.js';
 
 const COLS = 10;
 const ROWS = 20;
@@ -123,7 +124,8 @@ export class TetrisScene extends BaseGameScene {
     this.dropTimer = 0;
     this.softDropping = false;
 
-    this.boardGfx = this.add.graphics();
+    this.drawCyberArena();
+    this.boardGfx = this.add.graphics().setDepth(2);
     this.drawBoardFrame();
 
     this.nextPiece = this.randomPiece();
@@ -135,6 +137,30 @@ export class TetrisScene extends BaseGameScene {
 
     this.events.on('powerup-collected', (def) => {
       if (def.id === 'clear_rows') this.clearBottomRows(2);
+    });
+  }
+
+  drawCyberArena() {
+    CyberSceneFX.drawCircuitBackdrop(this, {
+      primary: COLORS.NEON_CYAN,
+      secondary: COLORS.NEON_GREEN,
+      accent: COLORS.NEON_PURPLE,
+      top: 32,
+      bottom: GAME_HEIGHT - 34,
+      density: 0.85,
+    });
+    CyberSceneFX.drawBinarySideData(this, { color: COLORS.NEON_CYAN, alpha: 0.1, columns: 2 });
+    CyberSceneFX.drawHudFrame(this, {
+      title: 'TETRIS: CORE RECONSTRUCTION',
+      subtitle: 'CORE MATRIX // LINE PURGE',
+      primary: COLORS.NEON_CYAN,
+      accent: COLORS.NEON_GREEN,
+    });
+    CyberSceneFX.drawHoloPanel(this, PREVIEW_X + 36, PREVIEW_Y + 145, 126, 90, {
+      primary: COLORS.NEON_GREEN,
+      accent: COLORS.NEON_CYAN,
+      depth: -5,
+      tilt: 0.08,
     });
   }
 
@@ -491,7 +517,8 @@ export class TetrisScene extends BaseGameScene {
         if (this.board[r][c]) {
           const x = BOARD_X + c * CELL + CELL / 2;
           const y = BOARD_Y + r * CELL + CELL / 2;
-          const img = this.add.image(x, y, 'tetris-block').setTint(this.boardColors[r][c]).setAlpha(0.9);
+          const img = this.add.image(x, y, 'tetris-block').setTint(this.boardColors[r][c]).setAlpha(0.9).setDepth(10);
+          img.setBlendMode(Phaser.BlendModes.ADD);
           this.blockImages.push(img);
         }
       }
@@ -510,8 +537,10 @@ export class TetrisScene extends BaseGameScene {
           if (ghostRow >= 0) {
             const gx = BOARD_X + (this.currentPieceX + c) * CELL + CELL / 2;
             const gyPx = BOARD_Y + ghostRow * CELL + CELL / 2;
-            const ghostGlow = this.add.image(gx, gyPx, 'tetris-block').setTint(color).setAlpha(0.08).setScale(1.12);
-            const ghost = this.add.image(gx, gyPx, 'tetris-block').setTint(color).setAlpha(0.16).setScale(0.96);
+            const ghostGlow = this.add.image(gx, gyPx, 'tetris-block').setTint(color).setAlpha(0.08).setScale(1.12).setDepth(8);
+            const ghost = this.add.image(gx, gyPx, 'tetris-block').setTint(color).setAlpha(0.16).setScale(0.96).setDepth(9);
+            ghostGlow.setBlendMode(Phaser.BlendModes.ADD);
+            ghost.setBlendMode(Phaser.BlendModes.ADD);
             this.blockImages.push(ghostGlow);
             this.blockImages.push(ghost);
           }
@@ -521,8 +550,10 @@ export class TetrisScene extends BaseGameScene {
             const px = BOARD_X + (this.currentPieceX + c) * CELL + CELL / 2;
             const pyPx = BOARD_Y + py * CELL + CELL / 2;
             const pulse = this.softDropping ? 1.08 : 1.0 + Math.sin((this.time.now + (r + c) * 30) * 0.012) * 0.02;
-            const glow = this.add.image(px, pyPx, 'tetris-block').setTint(color).setAlpha(0.22).setScale(1.16);
-            const img = this.add.image(px, pyPx, 'tetris-block').setTint(color).setScale(pulse);
+            const glow = this.add.image(px, pyPx, 'tetris-block').setTint(color).setAlpha(0.22).setScale(1.16).setDepth(12);
+            const img = this.add.image(px, pyPx, 'tetris-block').setTint(color).setScale(pulse).setDepth(13);
+            glow.setBlendMode(Phaser.BlendModes.ADD);
+            img.setBlendMode(Phaser.BlendModes.ADD);
             this.blockImages.push(glow);
             this.blockImages.push(img);
           }

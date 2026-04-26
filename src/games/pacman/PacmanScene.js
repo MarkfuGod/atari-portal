@@ -6,6 +6,7 @@ import SFX from '../../core/SFXManager.js';
 import TrailSystem from '../../vfx/TrailSystem.js';
 import DebrisSystem from '../../vfx/DebrisSystem.js';
 import GlitchEffect from '../../vfx/GlitchEffect.js';
+import CyberSceneFX from '../../vfx/CyberSceneFX.js';
 
 const CELL = 28;
 const COLS = 20;
@@ -101,33 +102,71 @@ export class PacmanScene extends BaseGameScene {
   }
 
   drawMaze() {
-    const gfx = this.add.graphics();
-    gfx.fillStyle(COLORS.NEON_BLUE, 0.2);
+    CyberSceneFX.drawCircuitBackdrop(this, {
+      primary: COLORS.NEON_BLUE,
+      secondary: COLORS.NEON_CYAN,
+      accent: COLORS.NEON_YELLOW,
+      top: 32,
+      bottom: GAME_HEIGHT - 34,
+      density: 1.25,
+    });
+    CyberSceneFX.drawBinarySideData(this, { color: COLORS.NEON_CYAN, alpha: 0.12, columns: 2 });
+    CyberSceneFX.drawHudFrame(this, {
+      title: 'PAC-MAN: CYBER-SNACKER',
+      subtitle: 'TARGET BIT: [A644]',
+      primary: COLORS.NEON_CYAN,
+      accent: COLORS.NEON_YELLOW,
+    });
+    CyberSceneFX.drawHoloPanel(this, OFFSET_X + CELL * 5, OFFSET_Y + CELL * 6.4, 110, 76, {
+      primary: COLORS.NEON_BLUE,
+      accent: COLORS.NEON_CYAN,
+      depth: -6,
+      tilt: -0.02,
+    });
+    CyberSceneFX.drawHoloPanel(this, OFFSET_X + CELL * 15, OFFSET_Y + CELL * 6.4, 110, 76, {
+      primary: COLORS.NEON_BLUE,
+      accent: COLORS.NEON_CYAN,
+      depth: -6,
+      tilt: 0.02,
+    });
 
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        if (MAZE[r][c] === 1) {
-          gfx.fillRect(OFFSET_X + c * CELL, OFFSET_Y + r * CELL, CELL, CELL);
-        }
-      }
-    }
+    const panel = this.add.graphics().setDepth(-2);
+    panel.fillStyle(0x030817, 0.72);
+    panel.fillRoundedRect(OFFSET_X - 18, OFFSET_Y - 18, COLS * CELL + 36, ROWS * CELL + 36, 18);
+    panel.lineStyle(2, COLORS.NEON_BLUE, 0.16);
+    panel.strokeRoundedRect(OFFSET_X - 18, OFFSET_Y - 18, COLS * CELL + 36, ROWS * CELL + 36, 18);
 
-    // Brighter wall outlines
-    gfx.lineStyle(1.5, COLORS.NEON_BLUE, 0.7);
+    const glow = this.add.graphics().setDepth(1);
+    const walls = this.add.graphics().setDepth(2);
+
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         if (MAZE[r][c] === 1) {
           const x = OFFSET_X + c * CELL;
           const y = OFFSET_Y + r * CELL;
-          if (r > 0 && MAZE[r - 1][c] !== 1) gfx.strokeLineShape(new Phaser.Geom.Line(x, y, x + CELL, y));
-          if (r < ROWS - 1 && MAZE[r + 1][c] !== 1) gfx.strokeLineShape(new Phaser.Geom.Line(x, y + CELL, x + CELL, y + CELL));
-          if (c > 0 && MAZE[r][c - 1] !== 1) gfx.strokeLineShape(new Phaser.Geom.Line(x, y, x, y + CELL));
-          if (c < COLS - 1 && MAZE[r][c + 1] !== 1) gfx.strokeLineShape(new Phaser.Geom.Line(x + CELL, y, x + CELL, y + CELL));
+          glow.fillStyle(COLORS.NEON_BLUE, 0.06);
+          glow.fillRoundedRect(x - 2, y - 2, CELL + 4, CELL + 4, 7);
+          walls.fillStyle(0x06102a, 0.82);
+          walls.fillRoundedRect(x + 2, y + 2, CELL - 4, CELL - 4, 6);
         }
       }
     }
 
-    // Node light points at intersections
+    const edge = this.add.graphics().setDepth(3);
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (MAZE[r][c] === 1) {
+          const x = OFFSET_X + c * CELL;
+          const y = OFFSET_Y + r * CELL;
+          if (r > 0 && MAZE[r - 1][c] !== 1) this._strokeMazeLine(edge, x + 4, y + 2, x + CELL - 4, y + 2);
+          if (r < ROWS - 1 && MAZE[r + 1][c] !== 1) this._strokeMazeLine(edge, x + 4, y + CELL - 2, x + CELL - 4, y + CELL - 2);
+          if (c > 0 && MAZE[r][c - 1] !== 1) this._strokeMazeLine(edge, x + 2, y + 4, x + 2, y + CELL - 4);
+          if (c < COLS - 1 && MAZE[r][c + 1] !== 1) this._strokeMazeLine(edge, x + CELL - 2, y + 4, x + CELL - 2, y + CELL - 4);
+        }
+      }
+    }
+
+    const nodes = this.add.graphics().setDepth(3);
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         if (MAZE[r][c] === 0) {
@@ -139,12 +178,23 @@ export class PacmanScene extends BaseGameScene {
           if (paths >= 3) {
             const nx = OFFSET_X + c * CELL + CELL / 2;
             const ny = OFFSET_Y + r * CELL + CELL / 2;
-            gfx.fillStyle(COLORS.NEON_BLUE, 0.08);
-            gfx.fillCircle(nx, ny, 3);
+            nodes.fillStyle(COLORS.NEON_CYAN, 0.16);
+            nodes.fillCircle(nx, ny, 5);
+            nodes.fillStyle(COLORS.WHITE, 0.42);
+            nodes.fillCircle(nx, ny, 1.4);
           }
         }
       }
     }
+  }
+
+  _strokeMazeLine(gfx, x1, y1, x2, y2) {
+    gfx.lineStyle(8, COLORS.NEON_BLUE, 0.08);
+    gfx.lineBetween(x1, y1, x2, y2);
+    gfx.lineStyle(4, COLORS.NEON_BLUE, 0.26);
+    gfx.lineBetween(x1, y1, x2, y2);
+    gfx.lineStyle(1.5, COLORS.NEON_CYAN, 0.92);
+    gfx.lineBetween(x1, y1, x2, y2);
   }
 
   createDots() {
@@ -157,13 +207,15 @@ export class PacmanScene extends BaseGameScene {
         const pos = cellToWorld(c, r);
 
         if (val === 0) {
-          const dot = this.add.image(pos.x, pos.y, 'dot').setDisplaySize(6, 6);
+          const dot = this.add.image(pos.x, pos.y, 'dot').setDisplaySize(5, 5).setDepth(5);
+          dot.setBlendMode(Phaser.BlendModes.ADD);
           dot.gridCol = c;
           dot.gridRow = r;
           this.dots.add(dot);
           this.totalDots++;
         } else if (val === 2) {
-          const pp = this.add.image(pos.x, pos.y, 'power-pellet').setDisplaySize(14, 14);
+          const pp = this.add.image(pos.x, pos.y, 'power-pellet').setDisplaySize(18, 18).setDepth(6);
+          pp.setBlendMode(Phaser.BlendModes.ADD);
           pp.gridCol = c;
           pp.gridRow = r;
           this.powerPellets.add(pp);
@@ -184,7 +236,11 @@ export class PacmanScene extends BaseGameScene {
 
   createPacman() {
     const startPos = cellToWorld(10, 11);
-    this.pacman = this.add.image(startPos.x, startPos.y, 'pacman').setDisplaySize(CELL - 4, CELL - 4);
+    this.pacGlow = this.add.circle(startPos.x, startPos.y, CELL * 0.72, COLORS.NEON_YELLOW, 0.16)
+      .setDepth(8)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    this.pacman = this.add.image(startPos.x, startPos.y, 'pacman').setDisplaySize(CELL - 1, CELL - 1);
+    this.pacman.setDepth(10).setBlendMode(Phaser.BlendModes.ADD);
     this.pacman.gridCol = 10;
     this.pacman.gridRow = 11;
     this.pacman.direction = DIRECTIONS.LEFT;
@@ -196,9 +252,9 @@ export class PacmanScene extends BaseGameScene {
 
     this._pacTrailId = TrailSystem.createTrail(this, this.pacman, {
       color: COLORS.NEON_YELLOW,
-      length: 4,
-      interval: 60,
-      size: 5,
+      length: 8,
+      interval: 38,
+      size: 7,
     });
   }
 
@@ -213,7 +269,17 @@ export class PacmanScene extends BaseGameScene {
     this.ghosts = [];
     for (const cfg of ghostConfigs) {
       const pos = cellToWorld(cfg.col, cfg.row);
-      const ghost = this.add.image(pos.x, pos.y, cfg.key).setDisplaySize(CELL - 4, CELL - 4);
+      const ghostColors = {
+        'ghost-red': COLORS.NEON_RED,
+        'ghost-pink': COLORS.NEON_PINK,
+        'ghost-cyan': COLORS.NEON_CYAN,
+        'ghost-orange': COLORS.NEON_ORANGE,
+      };
+      const glow = this.add.circle(pos.x, pos.y, CELL * 0.68, ghostColors[cfg.key] || COLORS.NEON_RED, 0.12)
+        .setDepth(8)
+        .setBlendMode(Phaser.BlendModes.ADD);
+      const ghost = this.add.image(pos.x, pos.y, cfg.key).setDisplaySize(CELL - 1, CELL - 1);
+      ghost.setDepth(10).setBlendMode(Phaser.BlendModes.ADD);
       ghost.gridCol = cfg.col;
       ghost.gridRow = cfg.row;
       ghost.direction = DIRECTIONS.UP;
@@ -224,19 +290,14 @@ export class PacmanScene extends BaseGameScene {
       ghost.textureKey = cfg.key;
       ghost.eaten = false;
       ghost.personality = cfg.personality;
+      ghost.glow = glow;
       this.ghosts.push(ghost);
 
-      const ghostColors = {
-        'ghost-red': COLORS.NEON_RED,
-        'ghost-pink': COLORS.NEON_PINK,
-        'ghost-cyan': COLORS.NEON_CYAN,
-        'ghost-orange': COLORS.NEON_ORANGE,
-      };
       ghost._trailId = TrailSystem.createTrail(this, ghost, {
         color: ghostColors[cfg.key] || COLORS.NEON_RED,
-        length: 3,
-        interval: 80,
-        size: 4,
+        length: 7,
+        interval: 48,
+        size: 5,
       });
     }
 
@@ -260,6 +321,7 @@ export class PacmanScene extends BaseGameScene {
     this.handleInput();
     this.movePacman(delta);
     this.moveGhosts(delta);
+    this.syncNeonActors(time);
     this.checkDotCollisions();
     this.checkGhostCollisions();
 
@@ -267,6 +329,22 @@ export class PacmanScene extends BaseGameScene {
     this.powerUps.checkCollection(this.pacman.x, this.pacman.y);
     this.glitch.checkDataLeakCollection(this.pacman.x, this.pacman.y);
     this.tryEnterPortal(this.pacman.x, this.pacman.y);
+  }
+
+  syncNeonActors(time) {
+    if (this.pacGlow) {
+      this.pacGlow.setPosition(this.pacman.x, this.pacman.y);
+      this.pacGlow.setScale(1 + Math.sin(time * 0.01) * 0.08);
+    }
+    if (this.ghosts) {
+      for (const ghost of this.ghosts) {
+        if (ghost.glow) {
+          ghost.glow.setPosition(ghost.x, ghost.y);
+          ghost.glow.setAlpha(ghost.eaten ? 0 : (ghost.vulnerable ? 0.2 : 0.12));
+          ghost.glow.setScale(1 + Math.sin(time * 0.008 + ghost.gridCol) * 0.1);
+        }
+      }
+    }
   }
 
   handleInput() {
@@ -659,8 +737,7 @@ export class PacmanScene extends BaseGameScene {
   checkPortalSpawn() {
     if (this.portalSpawned) return;
     if (this.dotsEaten / this.totalDots >= PORTAL_DOT_THRESHOLD) {
-      this.portalSpawned = true;
-      this.spawnPortalPellet();
+      this.portalSpawned = this.spawnPortalPellet();
     }
   }
 
@@ -672,10 +749,12 @@ export class PacmanScene extends BaseGameScene {
 
   spawnPortalPellet() {
     const candidates = [];
+    const fallbackCandidates = [];
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         if (this.isGhostHouseOrTunnel(r, c)) continue;
         if (this.grid[r][c] === 0 || this.grid[r][c] === 3) {
+          fallbackCandidates.push({ col: c, row: r });
           const dx = Math.abs(c - this.pacman.gridCol);
           const dy = Math.abs(r - this.pacman.gridRow);
           if (dx + dy > 5) candidates.push({ col: c, row: r });
@@ -683,8 +762,14 @@ export class PacmanScene extends BaseGameScene {
       }
     }
 
-    if (candidates.length === 0) return;
-    const spot = candidates[Math.floor(Math.random() * candidates.length)];
+    const pool = candidates.length > 0 ? candidates : fallbackCandidates;
+    if (pool.length === 0) {
+      const pos = cellToWorld(this.pacman.gridCol, this.pacman.gridRow);
+      this.triggerPortal(pos.x, pos.y);
+      return true;
+    }
+
+    const spot = pool[Math.floor(Math.random() * pool.length)];
     const pos = cellToWorld(spot.col, spot.row);
     this.grid[spot.row][spot.col] = 4;
 
@@ -698,6 +783,7 @@ export class PacmanScene extends BaseGameScene {
       scale: { from: 0.8, to: 1.1 },
       duration: 600, yoyo: true, repeat: -1,
     });
+    return true;
   }
 
   showPortalHint() {
@@ -706,8 +792,7 @@ export class PacmanScene extends BaseGameScene {
 
   onPortalForceSpawn() {
     if (!this.portalSpawned) {
-      this.portalSpawned = true;
-      this.spawnPortalPellet();
+      this.portalSpawned = this.spawnPortalPellet();
     } else {
       super.onPortalForceSpawn();
     }

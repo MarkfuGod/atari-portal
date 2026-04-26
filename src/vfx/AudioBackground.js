@@ -1354,7 +1354,6 @@ const AudioBackground = {
 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    if ((vw - GAME_W) / 2 < 30) return;
 
     this._ready = true;
     this._vw = vw;
@@ -1508,6 +1507,11 @@ const AudioBackground = {
     if (target === this._current) return;
     this._current = target;
     this._quad.material = this._materials[target];
+  },
+
+  setFocus(sceneName, x, y) {
+    if (!this._ready || this._warpActive) return;
+    ThreeSceneOverlay.setFocus(sceneName, x, y);
   },
 
   startWarp(durationMs = 2800, onMidpoint, onComplete) {

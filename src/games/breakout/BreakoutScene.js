@@ -7,6 +7,7 @@ import GlitchEffect from '../../vfx/GlitchEffect.js';
 import ArcadeFX from '../../vfx/ArcadeFX.js';
 import TrailSystem from '../../vfx/TrailSystem.js';
 import DebrisSystem from '../../vfx/DebrisSystem.js';
+import CyberSceneFX from '../../vfx/CyberSceneFX.js';
 
 const ROWS = 6;
 const COLS = 14;
@@ -58,6 +59,7 @@ export class BreakoutScene extends BaseGameScene {
     this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
     this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
 
+    this.drawCyberArena();
     this.drawBrickFieldBorder();
     this.createPaddle();
     this.createBall();
@@ -84,6 +86,36 @@ export class BreakoutScene extends BaseGameScene {
     });
   }
 
+  drawCyberArena() {
+    CyberSceneFX.drawCircuitBackdrop(this, {
+      primary: COLORS.NEON_CYAN,
+      secondary: COLORS.NEON_MAGENTA,
+      accent: COLORS.NEON_YELLOW,
+      top: 32,
+      bottom: GAME_HEIGHT - 34,
+      density: 0.9,
+    });
+    CyberSceneFX.drawBinarySideData(this, { color: COLORS.NEON_CYAN, alpha: 0.1, columns: 2 });
+    CyberSceneFX.drawHudFrame(this, {
+      title: 'BREAKOUT: DATA WALL BREAKER',
+      subtitle: 'ENCRYPTION WALL // RIFT BRICK',
+      primary: COLORS.NEON_CYAN,
+      accent: COLORS.NEON_MAGENTA,
+    });
+    CyberSceneFX.drawHoloPanel(this, 92, 420, 124, 96, {
+      primary: COLORS.NEON_PURPLE,
+      accent: COLORS.NEON_CYAN,
+      depth: -5,
+      tilt: -0.14,
+    });
+    CyberSceneFX.drawHoloPanel(this, GAME_WIDTH - 92, 420, 124, 96, {
+      primary: COLORS.NEON_PURPLE,
+      accent: COLORS.NEON_CYAN,
+      depth: -5,
+      tilt: 0.14,
+    });
+  }
+
   /** Neon frame around the brick grid (Breakout analogue to maze walls). */
   drawBrickFieldBorder() {
     const pad = BRICK_PAD;
@@ -105,8 +137,12 @@ export class BreakoutScene extends BaseGameScene {
     this.paddle.body.allowGravity = false;
     this.paddle.setCollideWorldBounds(true);
     this.paddle.setDisplaySize(PADDLE_BASE_W, PADDLE_H);
+    this.paddle.setDepth(12).setBlendMode(Phaser.BlendModes.ADD);
     this.paddle.refreshBody();
 
+    this.paddleGlow = this.add.rectangle(this.paddle.x, this.paddle.y, PADDLE_BASE_W + 18, PADDLE_H + 12, COLORS.NEON_CYAN, 0.14)
+      .setDepth(10)
+      .setBlendMode(Phaser.BlendModes.ADD);
     this._paddleCodeGfx = this.add.graphics().setDepth(11);
     this._codeScrollOffset = 0;
   }
@@ -133,6 +169,7 @@ export class BreakoutScene extends BaseGameScene {
     const ballOnPaddleY = PADDLE_Y - PADDLE_H / 2 - 8;
     this.ball = this.physics.add.image(GAME_WIDTH / 2, ballOnPaddleY, 'ball');
     this.ball.setDisplaySize(16, 16);
+    this.ball.setDepth(14).setBlendMode(Phaser.BlendModes.ADD);
     this.ball.setCollideWorldBounds(true);
     this.ball.setBounce(1);
     this.ball.body.allowGravity = false;
@@ -146,12 +183,15 @@ export class BreakoutScene extends BaseGameScene {
     });
 
     this.ball.body.onWorldBounds = true;
+    this.ballGlow = this.add.circle(this.ball.x, this.ball.y, 15, COLORS.NEON_CYAN, 0.18)
+      .setDepth(13)
+      .setBlendMode(Phaser.BlendModes.ADD);
 
     this._ballTrailId = TrailSystem.createTrail(this, this.ball, {
       color: COLORS.NEON_CYAN,
-      length: 7,
-      interval: 30,
-      size: 5,
+      length: 10,
+      interval: 24,
+      size: 6,
     });
   }
 
@@ -167,7 +207,7 @@ export class BreakoutScene extends BaseGameScene {
         brick.setDisplaySize(BRICK_W, BRICK_H);
         brick.refreshBody();
         brick.isPortal = false;
-        brick.setDepth(5);
+        brick.setDepth(6).setBlendMode(Phaser.BlendModes.ADD);
         if (animated) {
           brick.setAlpha(0);
           brick.setScale(0.7);
@@ -368,6 +408,7 @@ export class BreakoutScene extends BaseGameScene {
     if (!this.portalBrickSpawned && !this.portalTriggered) {
       this.maybeSpawnPortalBrickForced();
     }
+    this.portalTriggered = true;
     super.onPortalForceSpawn();
   }
 
@@ -490,8 +531,21 @@ export class BreakoutScene extends BaseGameScene {
     this.powerUps.checkCollection(this.ball.x, this.ball.y);
     this.glitch.checkDataLeakCollection(this.paddle.x, this.paddle.y);
 
-    if (this.portalTriggered) {
+    if (this.portalTriggered || this.portal?.portalActive) {
       this.tryEnterPortal(this.ball.x, this.ball.y);
+    }
+    this.syncGlowObjects();
+  }
+
+  syncGlowObjects() {
+    if (this.ballGlow && this.ball) {
+      this.ballGlow.setPosition(this.ball.x, this.ball.y);
+      this.ballGlow.setScale(1 + Math.sin(this.time.now * 0.012) * 0.12);
+    }
+    if (this.paddleGlow && this.paddle) {
+      this.paddleGlow.setPosition(this.paddle.x, this.paddle.y);
+      this.paddleGlow.setSize(this.paddle.displayWidth + 18, PADDLE_H + 12);
+      this.paddleGlow.setAlpha(0.1 + Math.sin(this.time.now * 0.008) * 0.04);
     }
   }
 

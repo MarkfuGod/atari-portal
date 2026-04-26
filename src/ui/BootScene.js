@@ -10,15 +10,6 @@ export class BootScene extends Phaser.Scene {
   preload() {
     SFX.init();
     this.generateTextures();
-    this.loadBGM();
-  }
-
-  loadBGM() {
-    this.load.audio('bgm_menu', 'assets/audio/BGM/BGM_menu.mp3');
-    this.load.audio('bgm_epic', 'assets/audio/BGM/BGM_Epic.mp3');
-    this.load.audio('bgm_intense', 'assets/audio/BGM/BGM_intense.mp3');
-    this.load.audio('bgm_reassurance', 'assets/audio/BGM/BGM_reassurance.mp3');
-    this.load.audio('bgm_rock', 'assets/audio/BGM/BGM_rock.mp3');
   }
 
   generateTextures() {
