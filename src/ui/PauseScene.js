@@ -136,8 +136,7 @@ export class PauseScene extends Phaser.Scene {
 
     const nextScene = GameManager.advanceToNextGame();
 
-    if (GameManager.isLastGame && GameManager.state.mode === 'story'
-        && GameManager.state.gamesCompleted.length >= 6) {
+    if (GameManager.storyComplete) {
       this.scene.start('VictoryScene');
     } else {
       this.scene.start('ModSelectScene', { from: this.parentScene, to: nextScene });

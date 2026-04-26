@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, COLORS, GAME_NAMES, SPEED_BOOST, HACK_CONFIG } from '../config.js';
+import { GAME_WIDTH, COLORS, GAME_NAMES, SPEED_BOOST, HACK_CONFIG, GAME_LORE, GAME_ORDER } from '../config.js';
 import { GameManager } from '../core/GameManager.js';
 import NeonGlow from '../vfx/NeonGlow.js';
 
@@ -69,6 +69,19 @@ export class HUDScene extends Phaser.Scene {
       fontSize: '10px', fontFamily: 'monospace', color: neonOrange,
     }).setOrigin(0.5, 0).setDepth(998).setAlpha(0);
 
+    // Breach progress bar
+    const bpX = 220;
+    const bpW = 120;
+    this.add.text(bpX - 2, 22, 'BREACH', {
+      fontSize: '7px', fontFamily: 'monospace', color: neonCyan,
+    }).setDepth(1000).setAlpha(0.5);
+    this.breachBarBg = this.add.rectangle(bpX, 19, bpW, 3, COLORS.HUD_BG, 0.6)
+      .setOrigin(0, 0.5).setDepth(999);
+    this.breachBarFill = this.add.rectangle(bpX, 19, 0, 3, COLORS.NEON_CYAN, 0.7)
+      .setOrigin(0, 0.5).setDepth(1000);
+    this.add.rectangle(bpX, 19, bpW, 3)
+      .setOrigin(0, 0.5).setDepth(1000).setStrokeStyle(1, COLORS.NEON_CYAN, 0.3);
+
     this.scene.get(GameManager.currentSceneKey)?.events?.on('score-changed', this.updateScore, this);
     this.events.on('wake', this.refresh, this);
     this.events.on('resume', this.refresh, this);
@@ -95,8 +108,8 @@ export class HUDScene extends Phaser.Scene {
     this.updateBoost();
     this.updateHackMeter();
     this.updateMutation();
-    const name = GAME_NAMES[GameManager.currentSceneKey] || '';
-    this.gameLabel.setText(name);
+    this.updateBreachProgress();
+    this._updateGameLabel(GameManager.currentSceneKey);
   }
 
   listenToScene(sceneKey) {
@@ -108,10 +121,27 @@ export class HUDScene extends Phaser.Scene {
       s.events.on('speed-boost-changed', this.updateBoost, this);
       s.events.on('hack-changed', this.updateHackMeter, this);
     }
-    const name = GAME_NAMES[sceneKey] || '';
-    this.gameLabel.setText(name);
+    this._updateGameLabel(sceneKey);
     this.updateMutation();
+    this.updateBreachProgress();
     this.scene.bringToTop();
+  }
+
+  _updateGameLabel(sceneKey) {
+    const lore = GAME_LORE[sceneKey];
+    if (lore) {
+      this.gameLabel.setText(`LAYER ${String(lore.layer).padStart(2, '0')} // ${GAME_NAMES[sceneKey] || ''}`);
+    } else {
+      this.gameLabel.setText(GAME_NAMES[sceneKey] || '');
+    }
+  }
+
+  updateBreachProgress() {
+    if (!this.breachBarFill) return;
+    const completed = GameManager.state.gamesCompleted ? GameManager.state.gamesCompleted.length : 0;
+    const total = GAME_ORDER.length;
+    const ratio = Math.min(1, completed / total);
+    this.breachBarFill.width = ratio * 120;
   }
 
   updateScore(score) {

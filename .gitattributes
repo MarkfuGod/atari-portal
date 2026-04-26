@@ -1,0 +1,2 @@
+public/assets/robotic_arm.glb filter=lfs diff=lfs merge=lfs -text
+public/assets/sprites/Logo.glb filter=lfs diff=lfs merge=lfs -text

@@ -45,6 +45,11 @@ class GameManagerSingleton {
     return this.state.currentGameIndex >= GAME_ORDER.length - 1;
   }
 
+  get storyComplete() {
+    return this.state.mode === 'story'
+      && this.state.gamesCompleted.length >= GAME_ORDER.length;
+  }
+
   get speedMultiplier() {
     let mult = this.state.speedBoostActive ? SPEED_BOOST.SPEED_MULT : 1.0;
     mult *= this.mutationSystem.speedMultiplier;

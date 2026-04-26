@@ -3,6 +3,12 @@ import { BaseGameScene } from '../BaseGameScene.js';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../../config.js';
 import { GameManager } from '../../core/GameManager.js';
 import SFX from '../../core/SFXManager.js';
+import GlitchEffect from '../../vfx/GlitchEffect.js';
+import ArcadeFX from '../../vfx/ArcadeFX.js';
+import DebrisSystem from '../../vfx/DebrisSystem.js';
+import RippleEffect from '../../vfx/RippleEffect.js';
+import TrailSystem from '../../vfx/TrailSystem.js';
+import CyberSceneFX from '../../vfx/CyberSceneFX.js';
 
 const TOP_Y = 28;
 const LANE_H = 44;
@@ -28,8 +34,11 @@ export class FroggerScene extends BaseGameScene {
     this.highestRow = 12;
     this.filledCount = 0;
     this.dead = false;
+    this.laneFx = this.add.graphics().setDepth(0.5);
 
+    this.drawCyberArena();
     this.drawLanes();
+    this.drawLaneLabels();
     this.createLilyPads();
     this.createCars();
     this.createLogs();
@@ -37,8 +46,26 @@ export class FroggerScene extends BaseGameScene {
     this.setupInput();
   }
 
+  drawCyberArena() {
+    CyberSceneFX.drawCircuitBackdrop(this, {
+      primary: COLORS.NEON_GREEN,
+      secondary: COLORS.NEON_CYAN,
+      accent: COLORS.NEON_YELLOW,
+      top: TOP_Y,
+      bottom: GAME_HEIGHT - 34,
+      density: 1,
+    });
+    CyberSceneFX.drawBinarySideData(this, { color: COLORS.NEON_GREEN, alpha: 0.1, columns: 2 });
+    CyberSceneFX.drawHudFrame(this, {
+      title: 'FROGGER: FIREWALL RUNNER',
+      subtitle: 'BITSTREAM RIVER // DATA HIGHWAY',
+      primary: COLORS.NEON_GREEN,
+      accent: COLORS.NEON_CYAN,
+    });
+  }
+
   drawLanes() {
-    const g = this.add.graphics();
+    const g = this.add.graphics().setDepth(-1);
 
     g.fillStyle(0x0a1a3a);
     g.fillRect(0, TOP_Y, GAME_WIDTH, LANE_H * 6);
@@ -61,9 +88,29 @@ export class FroggerScene extends BaseGameScene {
     g.fillRect(0, TOP_Y + 12 * LANE_H, GAME_WIDTH, LANE_H);
   }
 
+  drawLaneLabels() {
+    const labels = [
+      { row: 1, text: 'BIT-STREAM RIVER  > 1GB/s', color: '#69f3ff' },
+      { row: 2, text: 'HIGHWAY OF FAST DATA  > 10GB/s', color: '#9fffb3' },
+      { row: 4, text: 'HOLOGRAPHIC PLATFORMS', color: '#8de7ff' },
+      { row: 8, text: 'HIGHWAY OF FAST DATA  > 10GB/s', color: '#ffd36d' },
+      { row: 10, text: 'DATA SPEED  // VEHICLES', color: '#ffb36d' },
+      { row: 12, text: 'STARTING FROG', color: '#7cff7e' },
+    ];
+
+    labels.forEach(({ row, text, color }) => {
+      this.add.text(92, laneCenter(row) - 12, text, {
+        fontSize: '9px',
+        fontFamily: 'monospace',
+        color,
+      }).setDepth(1.8).setAlpha(0.55);
+    });
+  }
+
   createLilyPads() {
     this.pads = LILY_POSITIONS.map(x => {
       const pad = this.add.image(x, laneCenter(0), 'lilypad').setDepth(1);
+      pad.setBlendMode(Phaser.BlendModes.ADD);
       pad.filled = false;
       pad.isPortal = false;
       return pad;
@@ -83,6 +130,7 @@ export class FroggerScene extends BaseGameScene {
       const gap = GAME_WIDTH / lane.count;
       for (let i = 0; i < lane.count; i++) {
         const car = this.add.image(gap * i + gap / 2, laneCenter(lane.row), lane.tex).setDepth(2);
+        car.setBlendMode(Phaser.BlendModes.ADD);
         car.speed = lane.speed * lane.dir;
         car.setFlipX(lane.dir < 0);
         this.cars.push(car);
@@ -103,6 +151,7 @@ export class FroggerScene extends BaseGameScene {
       const gap = GAME_WIDTH / lane.count;
       for (let i = 0; i < lane.count; i++) {
         const log = this.add.image(gap * i + gap / 2, laneCenter(lane.row), 'log').setDepth(1);
+        log.setBlendMode(Phaser.BlendModes.ADD);
         if (lane.wide) log.setScale(2, 1);
         log.speed = lane.speed * lane.dir;
         log.row = lane.row;
@@ -113,7 +162,16 @@ export class FroggerScene extends BaseGameScene {
   }
 
   createFrog() {
-    this.frog = this.add.image(GAME_WIDTH / 2, laneCenter(12), 'frog').setDepth(5);
+    this.frogGlow = this.add.circle(GAME_WIDTH / 2, laneCenter(12), 20, COLORS.NEON_GREEN, 0.16)
+      .setDepth(4)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    this.frog = this.add.image(GAME_WIDTH / 2, laneCenter(12), 'frog').setDepth(5).setBlendMode(Phaser.BlendModes.ADD);
+    this._frogTrailId = TrailSystem.createTrail(this, this.frog, {
+      color: COLORS.NEON_GREEN,
+      length: 6,
+      interval: 48,
+      size: 5,
+    });
   }
 
   setupInput() {
@@ -126,6 +184,7 @@ export class FroggerScene extends BaseGameScene {
 
   update(time, delta) {
     super.update(time, delta);
+    this.updateLaneFx(time);
     if (this.dead) return;
 
     const dt = delta / 1000;
@@ -138,12 +197,23 @@ export class FroggerScene extends BaseGameScene {
     this.powerUps.checkCollection(this.frog.x, this.frog.y);
     this.glitch.checkDataLeakCollection(this.frog.x, this.frog.y);
     this.tryEnterPortal(this.frog.x, this.frog.y);
+    this.syncNeonActors(time);
+  }
+
+  syncNeonActors(time) {
+    if (this.frogGlow && this.frog) {
+      this.frogGlow.setPosition(this.frog.x, this.frog.y);
+      this.frogGlow.setScale(1 + Math.sin(time * 0.012) * 0.1);
+    }
+    this.cars.forEach((car, i) => car.setAlpha(0.82 + Math.sin(time * 0.006 + i) * 0.12));
+    this.logs.forEach((log, i) => log.setAlpha(0.72 + Math.sin(time * 0.005 + i) * 0.1));
   }
 
   moveCars(dt) {
     if (this.enemiesFrozen || this.powerUps.hasEffect('freeze')) return;
     for (const car of this.cars) {
       car.x += car.speed * dt * this.gameSpeed;
+      car.angle = Math.sin((this.time.now + car.y * 10) * 0.01) * 1.5;
       if (car.speed > 0 && car.x > GAME_WIDTH + 40) car.x = -40;
       else if (car.speed < 0 && car.x < -40) car.x = GAME_WIDTH + 40;
     }
@@ -152,6 +222,7 @@ export class FroggerScene extends BaseGameScene {
   moveLogs(dt) {
     for (const log of this.logs) {
       log.x += log.speed * dt * this.gameSpeed;
+      log.angle = Math.sin((this.time.now + log.y * 8) * 0.008) * 2.5;
       const edge = log.halfW + 20;
       if (log.speed > 0 && log.x > GAME_WIDTH + edge) log.x = -edge;
       else if (log.speed < 0 && log.x < -edge) log.x = GAME_WIDTH + edge;
@@ -193,6 +264,8 @@ export class FroggerScene extends BaseGameScene {
 
     if (newRow === this.frogRow && Math.abs(newX - this.frog.x) < 1) return;
 
+    const oldX = this.frog.x;
+    const oldY = this.frog.y;
     this.frog.x = newX;
     this.lastHopTime = time;
 
@@ -212,6 +285,9 @@ export class FroggerScene extends BaseGameScene {
       }
     }
 
+    this.spawnHopFx(oldX, oldY, this.frog.x, this.frog.y, dx, dy);
+    this.shakeCamera(dy !== 0 ? 0.0014 : 0.001, 60);
+
     if (this.frogRow === 0) this.checkLilyPad();
   }
 
@@ -221,15 +297,37 @@ export class FroggerScene extends BaseGameScene {
       if (Math.abs(this.frog.x - pad.x) < 30) {
         if (pad.isPortal) {
           this.frog.setPosition(pad.x, pad.y);
+          ArcadeFX.callout(this, 'ENTER RIFT', pad.x, pad.y - 28, {
+            color: COLORS.NEON_MAGENTA,
+            fontSize: '16px',
+          });
+          ArcadeFX.burst(this, pad.x, pad.y, {
+            count: 14,
+            distance: 44,
+            duration: 360,
+            colors: [COLORS.NEON_MAGENTA, COLORS.NEON_CYAN, COLORS.WHITE],
+            size: 5,
+          });
           this.triggerPortal(pad.x, pad.y);
           return;
         }
 
         pad.filled = true;
         this.filledCount++;
-        this.score.award('home');
+        this.score.award('home', 1, pad.x, pad.y);
         SFX.frogHome();
         this.add.image(pad.x, pad.y, 'frog').setDepth(3);
+        ArcadeFX.callout(this, 'HOME', pad.x, pad.y - 24, {
+          color: COLORS.NEON_GREEN,
+          fontSize: '16px',
+        });
+        ArcadeFX.burst(this, pad.x, pad.y, {
+          count: 10,
+          distance: 34,
+          duration: 280,
+          colors: [COLORS.NEON_GREEN, COLORS.NEON_CYAN, COLORS.WHITE],
+          size: 4,
+        });
 
         if (this.filledCount >= PORTAL_THRESHOLD) this.spawnPortalPad();
         this.respawnFrog();
@@ -244,6 +342,20 @@ export class FroggerScene extends BaseGameScene {
     if (pad) {
       pad.isPortal = true;
       pad.setTexture('lilypad-portal');
+      ArcadeFX.callout(this, 'PORTAL PAD', pad.x, pad.y - 24, {
+        color: COLORS.NEON_MAGENTA,
+        fontSize: '16px',
+      });
+      GlitchEffect.digitalNoise(this, 160);
+      this.tweens.add({
+        targets: pad,
+        alpha: { from: 1, to: 0.45 },
+        scaleX: 1.1,
+        scaleY: 1.1,
+        duration: 260,
+        yoyo: true,
+        repeat: -1,
+      });
     }
   }
 
@@ -270,7 +382,49 @@ export class FroggerScene extends BaseGameScene {
   die() {
     if (this.dead) return;
     this.dead = true;
-    this.frog.setVisible(false);
+    const waterDeath = this.frogRow >= 1 && this.frogRow <= 5;
+
+    if (waterDeath) {
+      // Neon water splash + ripple
+      RippleEffect.spawn(this, this.frog.x, this.frog.y, {
+        color: COLORS.NEON_CYAN,
+        rings: 3,
+        maxRadius: 40,
+        duration: 400,
+      });
+      DebrisSystem.deathBurst(this, this.frog.x, this.frog.y - 5, 'medium', {
+        colors: [COLORS.NEON_CYAN, COLORS.WHITE, COLORS.NEON_BLUE],
+        gravity: -30,
+      });
+      // Shrink into water
+      this.tweens.add({
+        targets: this.frog,
+        scaleX: 0.2, scaleY: 0.2, alpha: 0,
+        duration: 200,
+      });
+    } else {
+      // Road splat staging: flatten + debris
+      this.tweens.add({
+        targets: this.frog,
+        scaleY: 0.2, alpha: 0,
+        duration: 150,
+      });
+      DebrisSystem.deathBurst(this, this.frog.x, this.frog.y, 'medium', {
+        colors: [COLORS.NEON_RED, COLORS.NEON_ORANGE, COLORS.WHITE],
+      });
+      ArcadeFX.callout(this, 'COLLISION', this.frog.x, this.frog.y - 20, {
+        color: COLORS.NEON_RED,
+        fontSize: '14px',
+        duration: 600,
+      });
+    }
+
+    ArcadeFX.screenTint(this, {
+      color: waterDeath ? COLORS.NEON_CYAN : COLORS.NEON_RED,
+      alpha: 0.1,
+      duration: 180,
+    });
+    this.time.delayedCall(250, () => { this.frog.setVisible(false); });
     const alive = this.onPlayerDeath();
     if (alive) {
       this.time.delayedCall(500, () => {
@@ -289,5 +443,98 @@ export class FroggerScene extends BaseGameScene {
     this.highestRow = 12;
     this.frog.setPosition(GAME_WIDTH / 2, laneCenter(12));
     this.frog.setVisible(true);
+    this.frog.setAlpha(0.2);
+    this.frog.setScale(0.7);
+    this.tweens.add({
+      targets: this.frog,
+      alpha: 1,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 220,
+      ease: 'Back.easeOut',
+    });
+    ArcadeFX.flash(this, this.frog.x, this.frog.y, {
+      color: COLORS.NEON_GREEN,
+      radius: 14,
+      alpha: 0.24,
+      duration: 180,
+    });
+  }
+
+  updateLaneFx(time) {
+    if (!this.laneFx) return;
+    const g = this.laneFx;
+    g.clear();
+
+    g.fillStyle(COLORS.NEON_CYAN, 0.06);
+    for (let r = 1; r <= 5; r++) {
+      const y = laneCenter(r);
+      for (let i = 0; i < 5; i++) {
+        const waveX = ((time * 0.08) + i * 170 + r * 30) % (GAME_WIDTH + 80) - 40;
+        g.fillRect(waveX, y - 8, 36, 2);
+      }
+    }
+
+    g.fillStyle(COLORS.NEON_ORANGE, 0.05);
+    for (let r = 7; r <= 11; r++) {
+      const y = laneCenter(r);
+      for (let i = 0; i < 4; i++) {
+        const roadX = ((time * 0.14) + i * 220 + r * 40) % (GAME_WIDTH + 120) - 60;
+        g.fillRect(roadX, y, 28, 1.5);
+      }
+    }
+  }
+
+  spawnHopFx(oldX, oldY, newX, newY, dx, dy) {
+    const color = dy < 0 ? COLORS.NEON_GREEN : COLORS.NEON_CYAN;
+
+    // Smear trail
+    const smear = this.add.rectangle((oldX + newX) / 2, (oldY + newY) / 2, dx !== 0 ? 24 : 10, dy !== 0 ? 26 : 10, color, 0.14)
+      .setDepth(4);
+    this.tweens.add({
+      targets: smear,
+      alpha: 0,
+      scaleX: 0.5,
+      scaleY: 0.5,
+      duration: 120,
+      onComplete: () => smear.destroy(),
+    });
+
+    // Squash on takeoff → stretch in air → squash on landing
+    this.frog.setScale(
+      dx !== 0 ? 0.7 : 1.3,
+      dy !== 0 ? 1.3 : 0.7
+    );
+    this.tweens.add({
+      targets: this.frog,
+      scaleX: dx !== 0 ? 1.3 : 0.7,
+      scaleY: dy !== 0 ? 0.7 : 1.3,
+      duration: 60,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: this.frog,
+          scaleX: 1, scaleY: 1,
+          duration: 80,
+          ease: 'Back.easeOut',
+        });
+      },
+    });
+
+    // Landing ripple
+    RippleEffect.spawn(this, newX, newY, {
+      color: COLORS.NEON_GREEN,
+      rings: 2,
+      maxRadius: 18,
+      duration: 250,
+      lineWidth: 1,
+    });
+
+    ArcadeFX.flash(this, newX, newY, {
+      color,
+      radius: 10,
+      alpha: 0.18,
+      duration: 120,
+    });
   }
 }

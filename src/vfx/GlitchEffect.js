@@ -104,6 +104,69 @@ const GlitchEffect = {
       streams.forEach(s => { if (s.active) s.destroy(); });
     });
   },
+
+  localNoise(scene, x, y, radius = 40, duration = 400) {
+    const count = Math.floor(12 + radius * 0.5);
+    const particles = [];
+    for (let i = 0; i < count; i++) {
+      const px = x + (Math.random() - 0.5) * radius * 2;
+      const py = y + (Math.random() - 0.5) * radius * 2;
+      const dist = Math.hypot(px - x, py - y);
+      if (dist > radius) continue;
+      const w = 2 + Math.random() * 8;
+      const h = 1 + Math.random() * 2;
+      const color = [COLORS.NEON_CYAN, COLORS.NEON_MAGENTA, COLORS.WHITE][Math.floor(Math.random() * 3)];
+      const alpha = (0.3 + Math.random() * 0.4) * (1 - dist / radius);
+      const rect = scene.add.rectangle(px, py, w, h, color, alpha)
+        .setDepth(8002).setBlendMode(Phaser.BlendModes.ADD);
+      particles.push(rect);
+    }
+    scene.time.delayedCall(duration, () => {
+      particles.forEach(p => { if (p.active) p.destroy(); });
+    });
+    return particles;
+  },
+
+  signalLoss(scene, duration = 300) {
+    const flash = scene.add.rectangle(
+      GAME_WIDTH / 2, GAME_HEIGHT / 2,
+      GAME_WIDTH, GAME_HEIGHT,
+      0xffffff, 0
+    ).setDepth(8005);
+
+    scene.tweens.add({
+      targets: flash,
+      alpha: { from: 0.2, to: 0 },
+      duration: 60,
+      yoyo: true,
+      repeat: 2,
+      onComplete: () => flash.destroy(),
+    });
+
+    const barCount = 4 + Math.floor(Math.random() * 4);
+    const bars = [];
+    for (let i = 0; i < barCount; i++) {
+      const barY = Math.random() * GAME_HEIGHT;
+      const barH = 4 + Math.random() * 10;
+      const bar = scene.add.rectangle(
+        GAME_WIDTH / 2, barY,
+        GAME_WIDTH + 10, barH,
+        0x000000, 0.8
+      ).setDepth(8006);
+      bars.push(bar);
+
+      scene.tweens.add({
+        targets: bar,
+        y: barY + 80 + Math.random() * 120,
+        alpha: 0,
+        duration: duration * (0.6 + Math.random() * 0.4),
+        delay: i * 25,
+        ease: 'Linear',
+        onComplete: () => bar.destroy(),
+      });
+    }
+    return bars;
+  },
 };
 
 export default GlitchEffect;

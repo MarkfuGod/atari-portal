@@ -41,6 +41,11 @@ const BGM = {
       return;
     }
 
+    if (!scene.cache.audio.exists(targetKey)) {
+      this.stop(scene);
+      return;
+    }
+
     if (this._currentKey === targetKey && this._current && this._current.isPlaying) {
       console.log('[BGM] already playing target track', { sceneKey, targetKey });
       return;

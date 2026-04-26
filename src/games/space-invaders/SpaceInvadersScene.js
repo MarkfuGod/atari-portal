@@ -3,6 +3,11 @@ import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../../config.js';
 import { GameManager } from '../../core/GameManager.js';
 import { BaseGameScene } from '../BaseGameScene.js';
 import SFX from '../../core/SFXManager.js';
+import GlitchEffect from '../../vfx/GlitchEffect.js';
+import ArcadeFX from '../../vfx/ArcadeFX.js';
+import DebrisSystem from '../../vfx/DebrisSystem.js';
+import RippleEffect from '../../vfx/RippleEffect.js';
+import CyberSceneFX from '../../vfx/CyberSceneFX.js';
 
 const COLS = 11;
 const ROWS = 5;
@@ -43,7 +48,9 @@ export class SpaceInvadersScene extends BaseGameScene {
     this.portalMothershipSpawned = false;
     this.invincible = false;
     this.shieldCharges = 0;
+    this._criticalWaveCueShown = false;
 
+    this.drawCyberArena();
     this.createPlayer();
     this.createInvaderGrid();
     this.totalInvaders = this.invaders.getChildren().length;
@@ -60,6 +67,84 @@ export class SpaceInvadersScene extends BaseGameScene {
 
     this.setupInput();
     this.scheduleMothership();
+    this._createShields();
+  }
+
+  drawCyberArena() {
+    CyberSceneFX.drawCircuitBackdrop(this, {
+      primary: COLORS.NEON_RED,
+      secondary: COLORS.NEON_ORANGE,
+      accent: COLORS.NEON_CYAN,
+      top: 32,
+      bottom: GAME_HEIGHT - 34,
+      density: 0.95,
+    });
+    CyberSceneFX.drawBinarySideData(this, { color: COLORS.NEON_RED, alpha: 0.1, columns: 2 });
+    CyberSceneFX.drawHudFrame(this, {
+      title: 'SPACE INVADERS: CYBER SWARM',
+      subtitle: 'MALWARE DEFENSE // AUTONOMOUS WAVE',
+      primary: COLORS.NEON_RED,
+      accent: COLORS.NEON_ORANGE,
+    });
+    CyberSceneFX.drawHoloPanel(this, 100, 150, 130, 96, {
+      primary: COLORS.NEON_RED,
+      accent: COLORS.NEON_ORANGE,
+      depth: -5,
+      tilt: -0.12,
+    });
+    CyberSceneFX.drawHoloPanel(this, GAME_WIDTH - 100, 150, 130, 96, {
+      primary: COLORS.NEON_RED,
+      accent: COLORS.NEON_ORANGE,
+      depth: -5,
+      tilt: 0.12,
+    });
+  }
+
+  _createShields() {
+    this.shields = [];
+    const shieldCount = 4;
+    const spacing = GAME_WIDTH / (shieldCount + 1);
+    for (let i = 0; i < shieldCount; i++) {
+      const sx = spacing * (i + 1);
+      const sy = PLAYER_Y - 50;
+      const shield = this.add.image(sx, sy, 'shield')
+        .setDisplaySize(40, 30)
+        .setAlpha(0.8)
+        .setDepth(8);
+      shield.setData('hp', 4);
+      shield.setData('maxHp', 4);
+      shield.setBlendMode(Phaser.BlendModes.ADD);
+      this.shields.push(shield);
+    }
+  }
+
+  _damageShield(shield, hitX, hitY) {
+    const hp = shield.getData('hp') - 1;
+    shield.setData('hp', hp);
+    RippleEffect.spawn(this, hitX || shield.x, hitY || shield.y, {
+      color: 0xffd700,
+      rings: 2,
+      maxRadius: 25,
+      duration: 300,
+    });
+    shield.setAlpha(hp / shield.getData('maxHp') * 0.6 + 0.2);
+    this.tweens.add({
+      targets: shield,
+      alpha: shield.alpha - 0.15,
+      duration: 60,
+      yoyo: true,
+    });
+    if (hp <= 0) {
+      DebrisSystem.shatter(this, shield.x, shield.y, {
+        count: 8,
+        colors: [0xffd700, COLORS.NEON_YELLOW, COLORS.WHITE],
+        size: 4,
+        spread: 30,
+      });
+      shield.destroy();
+      const idx = this.shields.indexOf(shield);
+      if (idx !== -1) this.shields.splice(idx, 1);
+    }
   }
 
   createPlayer() {
@@ -74,6 +159,10 @@ export class SpaceInvadersScene extends BaseGameScene {
       this.player.destroy();
       this.player = this.add.sprite(GAME_WIDTH / 2, PLAYER_Y, 'player-ship');
     }
+    this.player.setDepth(12).setBlendMode(Phaser.BlendModes.ADD);
+    this.playerGlow = this.add.circle(this.player.x, this.player.y, 22, COLORS.NEON_ORANGE, 0.14)
+      .setDepth(10)
+      .setBlendMode(Phaser.BlendModes.ADD);
   }
 
   createInvaderGrid() {
@@ -99,6 +188,7 @@ export class SpaceInvadersScene extends BaseGameScene {
         invader.setData('alive', true);
         invader.setData('row', row);
         invader.setData('col', col);
+        invader.setDepth(8).setBlendMode(Phaser.BlendModes.ADD);
         this.invaders.add(invader);
       }
     }
@@ -132,6 +222,19 @@ export class SpaceInvadersScene extends BaseGameScene {
     if (this.portal.portalActive) {
       this.tryEnterPortal(this.player.x, this.player.y);
     }
+    this.syncNeonActors(time);
+  }
+
+  syncNeonActors(time) {
+    if (this.playerGlow && this.player) {
+      this.playerGlow.setPosition(this.player.x, this.player.y);
+      this.playerGlow.setScale(1 + Math.sin(time * 0.012) * 0.12);
+      this.playerGlow.setVisible(this.player.visible);
+    }
+    this.invaders.getChildren().forEach((invader) => {
+      if (!invader.active) return;
+      invader.setAlpha(0.82 + Math.sin(time * 0.006 + invader.getData('col')) * 0.18);
+    });
   }
 
   updatePlayer(delta) {
@@ -171,6 +274,13 @@ export class SpaceInvadersScene extends BaseGameScene {
     } else {
       this.spawnPlayerBullet(this.player.x, py, 0);
     }
+    ArcadeFX.burst(this, this.player.x, py, {
+      count: 8,
+      distance: 24,
+      duration: 160,
+      colors: [COLORS.NEON_CYAN, COLORS.WHITE],
+      size: 4,
+    });
     SFX.siShoot();
   }
 
@@ -225,12 +335,11 @@ export class SpaceInvadersScene extends BaseGameScene {
   }
 
   killInvader(invader) {
-    invader.setData('alive', false);
-    invader.setVisible(false);
-    invader.setActive(false);
+    const ix = invader.x;
+    const iy = invader.y;
 
     this.aliveCount--;
-    this.score.award('invader');
+    this.score.award('invader', 1, ix, iy);
     SFX.invaderHit();
 
     if (GameManager.mutationSystem.enemyDropCoins) {
@@ -238,7 +347,34 @@ export class SpaceInvadersScene extends BaseGameScene {
       this.events.emit('coins-changed', GameManager.state.coins);
     }
 
-    this.flashEffect(invader.x, invader.y, COLORS.WHITE);
+    // Scale-pop: scale up → shrink → destroy
+    this.tweens.add({
+      targets: invader,
+      scaleX: 1.3,
+      scaleY: 1.3,
+      duration: 50,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: invader,
+          scaleX: 0,
+          scaleY: 0,
+          alpha: 0,
+          duration: 100,
+          ease: 'Quad.easeIn',
+          onComplete: () => {
+            invader.setData('alive', false);
+            invader.setVisible(false);
+            invader.setActive(false);
+          },
+        });
+      },
+    });
+
+    this.flashEffect(ix, iy, COLORS.WHITE);
+    DebrisSystem.deathBurst(this, ix, iy, 'medium', {
+      colors: [COLORS.NEON_RED, COLORS.NEON_MAGENTA, COLORS.WHITE],
+    });
 
     if (this.shouldTriggerPortalMothership()) {
       this.spawnPortalMothership();
@@ -251,7 +387,9 @@ export class SpaceInvadersScene extends BaseGameScene {
     while (n > 0 && alive.length > 0) {
       const idx = Phaser.Math.Between(0, alive.length - 1);
       const inv = alive.splice(idx, 1)[0];
-      this.killInvader(inv);
+      this.time.delayedCall((5 - n) * 70, () => {
+        if (inv.active && inv.getData('alive')) this.killInvader(inv);
+      });
       n--;
     }
   }
@@ -260,18 +398,24 @@ export class SpaceInvadersScene extends BaseGameScene {
     bullet.destroy();
     const mx = this.mothershipSprite.x;
     const my = this.mothershipSprite.y;
+    const isPortalShip = this.mothershipSprite.getData('portalShip');
 
     this.score.award('mothership');
-    this.flashEffect(mx, my, COLORS.RED);
+    this.flashEffect(mx, my, isPortalShip ? COLORS.NEON_MAGENTA : COLORS.RED);
+    this.explosionEffect(mx, my, isPortalShip ? 16 : 12, [COLORS.RED, COLORS.NEON_MAGENTA, COLORS.WHITE], isPortalShip ? 84 : 64, isPortalShip ? 600 : 420);
 
-    const isPortalShip = this.mothershipSprite.getData('portalShip');
     this.mothershipSprite.destroy();
     this.mothershipSprite = null;
     this.mothershipActive = false;
 
     if (isPortalShip && !this.portalTriggered) {
       this.portalTriggered = true;
-      this.explosionEffect(mx, my);
+      ArcadeFX.callout(this, 'RIFT OPEN', mx, my - 24, {
+        color: COLORS.NEON_MAGENTA,
+        fontSize: '20px',
+      });
+      GlitchEffect.screenTear(this, 260);
+      ArcadeFX.screenTint(this, { color: COLORS.NEON_MAGENTA, alpha: 0.12, duration: 260 });
       this.time.delayedCall(400, () => this.triggerPortal(mx, my));
     }
   }
@@ -314,12 +458,33 @@ export class SpaceInvadersScene extends BaseGameScene {
 
     this.mothershipSprite.setData('dir', dir);
     this.mothershipSprite.setData('portalShip', isPortalShip);
+    ArcadeFX.flash(this, startX, this.gameArea.y + 20, {
+      color: isPortalShip ? COLORS.NEON_MAGENTA : COLORS.RED,
+      radius: 20,
+      alpha: 0.35,
+      duration: 220,
+      shape: 'rect',
+    });
+    if (isPortalShip) {
+      ArcadeFX.callout(this, 'PORTAL SHIP', GAME_WIDTH / 2, this.gameArea.y + 32, {
+        color: COLORS.NEON_MAGENTA,
+        fontSize: '18px',
+      });
+    }
 
     if (isPortalShip) {
       this.tweens.add({
         targets: this.mothershipSprite,
         alpha: { from: 1, to: 0.4 },
         duration: 300,
+        yoyo: true,
+        repeat: -1,
+      });
+      this.tweens.add({
+        targets: this.mothershipSprite,
+        scaleX: 1.12,
+        scaleY: 1.12,
+        duration: 320,
         yoyo: true,
         repeat: -1,
       });
@@ -361,6 +526,21 @@ export class SpaceInvadersScene extends BaseGameScene {
       bomb = this.add.rectangle(x, y + 10, 4, 10, COLORS.YELLOW);
     }
     this.bombs.add(bomb);
+    ArcadeFX.flash(this, x, y + 10, {
+      color: COLORS.NEON_ORANGE,
+      radius: 10,
+      alpha: 0.28,
+      duration: 140,
+      shape: 'rect',
+    });
+    const telegraph = this.add.rectangle(x, y + 28, 3, 28, COLORS.NEON_ORANGE, 0.18).setDepth(8);
+    this.tweens.add({
+      targets: telegraph,
+      alpha: 0,
+      scaleY: 0.4,
+      duration: 120,
+      onComplete: () => telegraph.destroy(),
+    });
     SFX.bombDrop();
   }
 
@@ -374,6 +554,23 @@ export class SpaceInvadersScene extends BaseGameScene {
         bomb.destroy();
         return;
       }
+
+      // Check shield collision
+      let shieldHit = false;
+      if (this.shields) {
+        for (const sh of this.shields) {
+          if (!sh || !sh.active) continue;
+          const dx = Math.abs(bomb.x - sh.x);
+          const dy = Math.abs(bomb.y - sh.y);
+          if (dx < 22 && dy < 17) {
+            bomb.destroy();
+            this._damageShield(sh, bomb.x, bomb.y);
+            shieldHit = true;
+            break;
+          }
+        }
+      }
+      if (shieldHit) return;
 
       if (!this.invincible && this.hitTest(bomb, this.player, 14, 12)) {
         bomb.destroy();
@@ -389,6 +586,14 @@ export class SpaceInvadersScene extends BaseGameScene {
 
     const ratio = this.aliveCount / this.totalInvaders;
     this.moveTimer = Phaser.Math.Linear(MIN_MOVE_INTERVAL, BASE_MOVE_INTERVAL, ratio) / GameManager.speedMultiplier;
+    if (ratio <= 0.28 && !this._criticalWaveCueShown) {
+      this._criticalWaveCueShown = true;
+      ArcadeFX.callout(this, 'FINAL SWARM', GAME_WIDTH / 2, GRID_TOP - 20, {
+        color: COLORS.NEON_ORANGE,
+        fontSize: '20px',
+      });
+      ArcadeFX.screenTint(this, { color: COLORS.NEON_ORANGE, alpha: 0.08, duration: 220 });
+    }
 
     let edgeHit = false;
     const alive = this.invaders.getChildren().filter(i => i.getData('alive'));
@@ -403,6 +608,7 @@ export class SpaceInvadersScene extends BaseGameScene {
 
     if (edgeHit) {
       this.direction *= -1;
+      this.shakeCamera(0.0015 + (1 - ratio) * 0.0025, 90);
       for (const inv of alive) {
         inv.y += STEP_DOWN;
         if (inv.y >= PLAYER_Y - 20) {
@@ -427,10 +633,15 @@ export class SpaceInvadersScene extends BaseGameScene {
     if (this.shieldCharges > 0) {
       this.shieldCharges--;
       this.flashEffect(this.player.x, this.player.y, COLORS.NEON_CYAN);
+      this.explosionEffect(this.player.x, this.player.y, 10, [COLORS.NEON_CYAN, COLORS.WHITE], 34, 220);
+      ArcadeFX.screenTint(this, { color: COLORS.NEON_CYAN, alpha: 0.08, duration: 140 });
       return;
     }
 
     this.flashEffect(this.player.x, this.player.y, COLORS.RED);
+    this.explosionEffect(this.player.x, this.player.y, 14, [COLORS.NEON_RED, COLORS.NEON_ORANGE, COLORS.WHITE], 52, 320);
+    GlitchEffect.chromaticAberration(this, 180);
+    ArcadeFX.screenTint(this, { color: COLORS.NEON_RED, alpha: 0.12, duration: 180 });
     const alive = this.onPlayerDeath();
 
     if (alive) {
@@ -463,34 +674,25 @@ export class SpaceInvadersScene extends BaseGameScene {
   }
 
   flashEffect(x, y, color) {
-    const flash = this.add.rectangle(x, y, 24, 24, color);
-    this.tweens.add({
-      targets: flash,
-      alpha: 0,
-      scaleX: 2,
-      scaleY: 2,
-      duration: 250,
-      onComplete: () => flash.destroy(),
+    ArcadeFX.flash(this, x, y, {
+      color,
+      radius: 16,
+      alpha: 0.45,
+      duration: 220,
+      scale: 2.1,
+      shape: 'rect',
     });
   }
 
-  explosionEffect(x, y) {
-    for (let i = 0; i < 8; i++) {
-      const angle = (Math.PI * 2 * i) / 8;
-      const particle = this.add.rectangle(
-        x, y, 6, 6,
-        Phaser.Utils.Array.GetRandom([COLORS.RED, COLORS.YELLOW, COLORS.WHITE])
-      );
-      this.tweens.add({
-        targets: particle,
-        x: x + Math.cos(angle) * 60,
-        y: y + Math.sin(angle) * 60,
-        alpha: 0,
-        duration: 500,
-        ease: 'Power2',
-        onComplete: () => particle.destroy(),
-      });
-    }
+  explosionEffect(x, y, count = 8, colors = [COLORS.RED, COLORS.YELLOW, COLORS.WHITE], distance = 60, duration = 500) {
+    ArcadeFX.burst(this, x, y, {
+      count,
+      colors,
+      distance,
+      duration,
+      size: 6,
+      shape: 'rect',
+    });
   }
 
   shutdown() {

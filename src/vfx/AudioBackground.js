@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import AudioReactive from '../core/AudioReactiveSystem.js';
+import ThreeSceneOverlay from './ThreeSceneOverlay.js';
 
 const GAME_W = 800;
 
@@ -814,6 +815,413 @@ void main() {
 }`;
 
 // ═══════════════════════════════════════════════════════════════════
+//  Shader 7 — Data Matrix  (Breakout)
+//  Perspective grid floor + sparse matrix rain columns
+// ═══════════════════════════════════════════════════════════════════
+
+const DATAMATRIX_FRAG = /* glsl */ `
+precision highp float;
+uniform float iTime;
+uniform vec2  iResolution;
+uniform float battery;
+uniform float bass;
+uniform float beatIntensity;
+uniform float brightness;
+uniform vec3  tint;
+
+float dmHash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float gridFloor(vec2 uv, float t) {
+  vec2 s = vec2(uv.y, uv.y * uv.y * 0.2) * 0.012;
+  uv += vec2(0.0, t * 3.0);
+  uv = abs(fract(uv) - 0.5);
+  vec2 lines = smoothstep(s, vec2(0.0), uv);
+  return clamp(lines.x + lines.y, 0.0, 2.0);
+}
+
+float rain(vec2 uv, float t) {
+  vec2 id = floor(uv * vec2(40.0, 1.0));
+  float h = dmHash(id);
+  if (h > 0.15) return 0.0;
+  float speed = 1.5 + h * 3.0;
+  float y = fract(uv.y * 8.0 - t * speed + h * 10.0);
+  float trail = smoothstep(0.0, 0.6, y) * smoothstep(1.0, 0.7, y);
+  float bright = smoothstep(0.95, 1.0, y) * 2.0;
+  return (trail * 0.3 + bright) * (0.3 + bass * 0.7);
+}
+
+void main() {
+  vec2 uv = (2.0 * gl_FragCoord.xy - iResolution) / iResolution.y;
+  vec3 col = vec3(0.02, 0.04, 0.1);
+  float bat = 0.3 + battery * 0.7;
+
+  if (uv.y < -0.15) {
+    vec2 guv = uv;
+    guv.y = 3.0 / (abs(guv.y + 0.15) + 0.05);
+    guv.x *= guv.y;
+    float g = gridFloor(guv, iTime * bat);
+    vec3 gridCol = vec3(0.0, 0.75, 1.0);
+    col += gridCol * g * (0.4 + bass * 0.6);
+    col += gridCol * g * beatIntensity * 0.3;
+  } else {
+    float r = rain(uv, iTime);
+    col += vec3(0.0, r * 0.8, r * 0.3);
+    float horizon = exp(-abs(uv.y + 0.15) * 8.0);
+    col += vec3(0.0, 0.4, 0.8) * horizon * (0.5 + bass * 0.5);
+  }
+
+  float vignette = 1.0 - dot(uv * 0.5, uv * 0.5);
+  col *= vignette;
+  col += beatIntensity * vec3(0.0, 0.12, 0.18);
+  col = col * brightness + tint;
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// ═══════════════════════════════════════════════════════════════════
+//  Shader 8 — Cyber Swarm  (Space Invaders)
+//  Dark space + red alert pulse + hexagonal pattern
+// ═══════════════════════════════════════════════════════════════════
+
+const CYBERSWARM_FRAG = /* glsl */ `
+precision highp float;
+uniform float iTime;
+uniform vec2  iResolution;
+uniform float battery;
+uniform float bass;
+uniform float beatIntensity;
+uniform float brightness;
+uniform vec3  tint;
+
+float csHash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float hexDist(vec2 p) {
+  p = abs(p);
+  return max(dot(p, normalize(vec2(1.0, 1.732))), p.x);
+}
+
+vec4 hexCoords(vec2 uv) {
+  vec2 r = vec2(1.0, 1.732);
+  vec2 h = r * 0.5;
+  vec2 a = mod(uv, r) - h;
+  vec2 b = mod(uv - h, r) - h;
+  vec2 gv = dot(a, a) < dot(b, b) ? a : b;
+  vec2 id = uv - gv;
+  return vec4(gv, id);
+}
+
+void main() {
+  vec2 uv = (2.0 * gl_FragCoord.xy - iResolution) / iResolution.y;
+  vec3 col = vec3(0.03, 0.01, 0.02);
+
+  vec4 hc = hexCoords(uv * 4.0);
+  float hd = hexDist(hc.xy);
+  float hexLine = smoothstep(0.48, 0.46, hd);
+  float pulse = sin(iTime * 2.0 + hc.z * 0.5 + hc.w * 0.3) * 0.5 + 0.5;
+  col += vec3(0.6, 0.05, 0.05) * hexLine * 0.12 * (0.3 + pulse * 0.7);
+  float spark = smoothstep(0.97, 1.0, csHash(hc.zw + floor(iTime * 2.0)));
+  col += vec3(1.0, 0.3, 0.1) * spark * hexLine * 0.8;
+
+  float horizY = uv.y + 0.6;
+  if (horizY < 0.15 && horizY > -0.05) {
+    float gy = 2.5 / (abs(horizY) + 0.04);
+    vec2 guv = vec2(uv.x * gy, gy);
+    guv += vec2(0.0, iTime * 2.0);
+    vec2 gLines = smoothstep(vec2(0.02), vec2(0.0), abs(fract(guv * 0.5) - 0.5));
+    float g = clamp(gLines.x + gLines.y, 0.0, 1.5);
+    col += vec3(0.8, 0.15, 0.05) * g * 0.3;
+  }
+
+  float alert = pow(sin(iTime * 3.0) * 0.5 + 0.5, 3.0);
+  col += vec3(0.3, 0.0, 0.0) * alert * bass * 0.5;
+
+  float vignette = 1.0 - dot(uv * 0.5, uv * 0.5);
+  col *= vignette;
+  col += beatIntensity * vec3(0.2, 0.05, 0.02);
+  col = col * brightness + tint;
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// ═══════════════════════════════════════════════════════════════════
+//  Shader 9 — Data Void  (Asteroids)
+//  Dark void + rotating data vortex + holographic nebula
+// ═══════════════════════════════════════════════════════════════════
+
+const DATAVOID_FRAG = /* glsl */ `
+precision highp float;
+uniform float iTime;
+uniform vec2  iResolution;
+uniform float battery;
+uniform float bass;
+uniform float beatIntensity;
+uniform float brightness;
+uniform vec3  tint;
+
+float dvHash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float dvNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = dvHash(i);
+  float b = dvHash(i + vec2(1.0, 0.0));
+  float c = dvHash(i + vec2(0.0, 1.0));
+  float d = dvHash(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+float fbm(vec2 p) {
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i < 5; i++) {
+    v += a * dvNoise(p);
+    p *= 2.1;
+    a *= 0.48;
+  }
+  return v;
+}
+
+void main() {
+  vec2 uv = (2.0 * gl_FragCoord.xy - iResolution) / iResolution.y;
+  vec3 col = vec3(0.015, 0.005, 0.04);
+
+  float a = atan(uv.y, uv.x);
+  float r = length(uv);
+  vec2 spiral = vec2(r * 3.0 - iTime * 0.3, a * 2.0 / 3.14159);
+  float s = fbm(spiral * 3.0);
+  float vortex = s * smoothstep(1.5, 0.2, r) * smoothstep(0.0, 0.15, r);
+  col += vec3(0.3, 0.05, 0.6) * vortex * 0.5;
+  col += vec3(0.0, 0.5, 0.6) * vortex * vortex * 0.8;
+
+  float neb1 = fbm(uv * 2.0 + iTime * 0.05);
+  float neb2 = fbm(uv * 3.0 - iTime * 0.03 + 5.0);
+  col += vec3(0.4, 0.0, 0.6) * neb1 * 0.08;
+  col += vec3(0.0, 0.3, 0.5) * neb2 * 0.06;
+
+  for (int i = 0; i < 60; i++) {
+    vec2 sPos = vec2(dvHash(vec2(float(i), 0.0)), dvHash(vec2(0.0, float(i)))) * 4.0 - 2.0;
+    float d = length(uv - sPos);
+    float twinkle = sin(iTime * (1.0 + dvHash(sPos) * 3.0) + float(i)) * 0.5 + 0.5;
+    col += vec3(0.6, 0.7, 1.0) * (0.0008 / (d * d + 0.001)) * twinkle;
+  }
+
+  col += vec3(0.15, 0.0, 0.3) * vortex * bass;
+  float vignette = 1.0 - dot(uv * 0.4, uv * 0.4);
+  col *= max(vignette, 0.0);
+  col += beatIntensity * vec3(0.1, 0.02, 0.15);
+  col = col * brightness + tint;
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// ═══════════════════════════════════════════════════════════════════
+//  Shader 10 — Bitstream  (Frogger)
+//  Horizontal flowing data bands + glowing data pipes
+// ═══════════════════════════════════════════════════════════════════
+
+const BITSTREAM_FRAG = /* glsl */ `
+precision highp float;
+uniform float iTime;
+uniform vec2  iResolution;
+uniform float battery;
+uniform float bass;
+uniform float beatIntensity;
+uniform float brightness;
+uniform vec3  tint;
+
+float bsHash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+void main() {
+  vec2 uv = (2.0 * gl_FragCoord.xy - iResolution) / iResolution.y;
+  vec3 col = vec3(0.02, 0.03, 0.08);
+
+  for (int i = 0; i < 8; i++) {
+    float fi = float(i);
+    float y = -0.8 + fi * 0.23;
+    float band = exp(-abs(uv.y - y) * 15.0);
+    float speed = 0.5 + bsHash(vec2(fi, 0.0)) * 2.0;
+    float dir = bsHash(vec2(fi, 1.0)) > 0.5 ? 1.0 : -1.0;
+    float flow = sin((uv.x * 8.0 + iTime * speed * dir) + fi * 2.0) * 0.5 + 0.5;
+    vec3 bandCol = (mod(fi, 2.0) < 1.0)
+      ? vec3(0.0, 0.7, 0.9)
+      : vec3(0.1, 0.8, 0.3);
+    col += bandCol * band * flow * 0.15;
+    float pipe = smoothstep(0.005, 0.0, abs(uv.y - y - 0.115));
+    col += bandCol * pipe * 0.6 * (0.5 + bass * 0.5);
+  }
+
+  for (int i = 0; i < 30; i++) {
+    float fi = float(i);
+    float px = bsHash(vec2(fi, 3.0)) * 4.0 - 2.0;
+    float band = floor(bsHash(vec2(fi, 4.0)) * 8.0);
+    float py = -0.8 + band * 0.23 + 0.05;
+    float speed = 1.0 + bsHash(vec2(fi, 5.0)) * 3.0;
+    float dir = bsHash(vec2(band, 1.0)) > 0.5 ? 1.0 : -1.0;
+    float cx = fract((px + iTime * speed * dir) * 0.25) * 4.0 - 2.0;
+    float d = length(vec2(uv.x - cx, uv.y - py));
+    col += vec3(0.0, 0.9, 1.0) * (0.0003 / (d * d + 0.0005));
+  }
+
+  float vignette = 1.0 - dot(uv * 0.45, uv * 0.45);
+  col *= max(vignette, 0.0);
+  col += beatIntensity * vec3(0.0, 0.1, 0.12);
+  col = col * brightness + tint;
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// ═══════════════════════════════════════════════════════════════════
+//  Shader 11 — Cyber Maze  (Pac-Man)
+//  Top-down glowing grid maze + flickering data nodes
+// ═══════════════════════════════════════════════════════════════════
+
+const CYBERMAZE_FRAG = /* glsl */ `
+precision highp float;
+uniform float iTime;
+uniform vec2  iResolution;
+uniform float battery;
+uniform float bass;
+uniform float beatIntensity;
+uniform float brightness;
+uniform vec3  tint;
+
+float cmHash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float maze(vec2 p) {
+  vec2 id = floor(p);
+  vec2 f = fract(p);
+  float h = cmHash(id);
+  float wall = 0.0;
+  float lw = 0.06;
+  if (h < 0.35) {
+    wall = smoothstep(lw, 0.0, abs(f.x - 0.5));
+  } else if (h < 0.55) {
+    wall = smoothstep(lw, 0.0, abs(f.y - 0.5));
+  } else if (h < 0.7) {
+    wall = smoothstep(lw, 0.0, abs(f.x - 0.5));
+    wall = max(wall, smoothstep(lw, 0.0, abs(f.y - 0.5)));
+  }
+  wall = max(wall, smoothstep(lw, 0.0, abs(f.x)));
+  wall = max(wall, smoothstep(lw, 0.0, abs(f.y)));
+  return wall;
+}
+
+void main() {
+  vec2 uv = (2.0 * gl_FragCoord.xy - iResolution) / iResolution.y;
+  vec3 col = vec3(0.01, 0.015, 0.04);
+
+  vec2 muv = uv * 5.0 + vec2(iTime * 0.15, iTime * 0.1);
+  float m = maze(muv);
+  vec3 mazeCol = vec3(0.15, 0.25, 0.9);
+  col += mazeCol * m * 0.25;
+  float glow = maze(muv * 0.98) * 0.15;
+  col += vec3(0.1, 0.2, 0.7) * glow;
+
+  vec2 nid = floor(muv);
+  for (int dx = -1; dx <= 1; dx++) {
+    for (int dy = -1; dy <= 1; dy++) {
+      vec2 cell = nid + vec2(float(dx), float(dy));
+      float h = cmHash(cell);
+      if (h < 0.12) {
+        vec2 nodePos = (cell + 0.5) / 5.0 - vec2(iTime * 0.15, iTime * 0.1) / 5.0;
+        float d = length(uv - nodePos);
+        float flicker = sin(iTime * (3.0 + h * 5.0) + h * 20.0) * 0.5 + 0.5;
+        col += vec3(0.3, 0.5, 1.0) * (0.002 / (d * d + 0.002)) * flicker;
+      }
+    }
+  }
+
+  col += mazeCol * m * bass * 0.2;
+  float vignette = 1.0 - dot(uv * 0.5, uv * 0.5);
+  col *= max(vignette, 0.0);
+  col += beatIntensity * vec3(0.05, 0.08, 0.18);
+  col = col * brightness + tint;
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// ═══════════════════════════════════════════════════════════════════
+//  Shader 12 — Data Core  (Tetris)
+//  Dark mechanical depth + energy core pulse + side structures
+// ═══════════════════════════════════════════════════════════════════
+
+const DATACORE_FRAG = /* glsl */ `
+precision highp float;
+uniform float iTime;
+uniform vec2  iResolution;
+uniform float battery;
+uniform float bass;
+uniform float beatIntensity;
+uniform float brightness;
+uniform vec3  tint;
+
+float dcHash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float dcBox(vec2 p, vec2 b) {
+  vec2 d = abs(p) - b;
+  return length(max(d, vec2(0.0))) + min(max(d.x, d.y), 0.0);
+}
+
+void main() {
+  vec2 uv = (2.0 * gl_FragCoord.xy - iResolution) / iResolution.y;
+  vec3 col = vec3(0.02, 0.02, 0.03);
+
+  float r = length(uv);
+  float pulse = sin(iTime * 1.5) * 0.5 + 0.5;
+  float core = exp(-r * 4.0) * (0.3 + pulse * 0.7 + bass * 0.5);
+  col += vec3(0.0, 0.6, 0.8) * core * 0.4;
+  col += vec3(0.4, 0.0, 0.7) * core * core * 0.6;
+
+  float ring1 = exp(-abs(r - 0.4 - bass * 0.1) * 30.0);
+  float ring2 = exp(-abs(r - 0.7 - bass * 0.05) * 20.0);
+  col += vec3(0.0, 0.7, 0.9) * ring1 * 0.3;
+  col += vec3(0.5, 0.0, 0.8) * ring2 * 0.2;
+
+  for (int i = 0; i < 4; i++) {
+    float fi = float(i);
+    float angle = fi * 1.5708 + iTime * 0.3;
+    vec2 armDir = vec2(cos(angle), sin(angle));
+    float armDist = abs(dot(uv, vec2(-armDir.y, armDir.x)));
+    float along = dot(uv, armDir);
+    float arm = smoothstep(0.015, 0.0, armDist) * smoothstep(0.2, 0.3, along) * smoothstep(1.2, 0.8, along);
+    col += vec3(0.0, 0.5, 0.7) * arm * 0.4;
+    float joint = exp(-length(uv - armDir * 0.8) * 12.0);
+    float jPulse = sin(iTime * 2.0 + fi * 1.5) * 0.5 + 0.5;
+    col += vec3(0.5, 0.0, 0.8) * joint * jPulse * 0.5;
+  }
+
+  float sideL = smoothstep(0.0, 0.01, -uv.x - 0.9);
+  float sideR = smoothstep(0.0, 0.01, uv.x - 0.9);
+  for (int i = 0; i < 6; i++) {
+    float fi = float(i);
+    float y = -0.7 + fi * 0.28;
+    float gearL = dcBox(vec2(uv.x + 1.1, uv.y - y), vec2(0.15, 0.04));
+    float gearR = dcBox(vec2(uv.x - 1.1, uv.y - y), vec2(0.15, 0.04));
+    float rot = sin(iTime * (1.0 + fi * 0.3) + fi) * 0.5 + 0.5;
+    col += vec3(0.15, 0.15, 0.2) * smoothstep(0.01, 0.0, gearL) * rot * sideL;
+    col += vec3(0.15, 0.15, 0.2) * smoothstep(0.01, 0.0, gearR) * rot * sideR;
+  }
+
+  vec2 gridUV = uv * 8.0;
+  vec2 gLines = smoothstep(vec2(0.06), vec2(0.0), abs(fract(gridUV) - 0.5));
+  float g = (gLines.x + gLines.y) * 0.04;
+  col += vec3(0.0, 0.3, 0.4) * g;
+
+  float vignette = 1.0 - dot(uv * 0.45, uv * 0.45);
+  col *= max(vignette, 0.0);
+  col += beatIntensity * vec3(0.06, 0.02, 0.12);
+  col = col * brightness + tint;
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// ═══════════════════════════════════════════════════════════════════
 //  Shader 6 — Hyperspace Warp  (portal transition)
 //  Full-screen wormhole tunnel for dimensional travel
 // ═══════════════════════════════════════════════════════════════════
@@ -907,11 +1315,17 @@ void main() {
 // ═══════════════════════════════════════════════════════════════════
 
 const SCENE_MAP = {
-  BootScene:      'synthwave',
-  MenuScene:      'synthwave',
-  GameOverScene:  'mountains',
-  VictoryScene:   'dyinguniverse',
-  ModSelectScene: 'djconsole',
+  BootScene:           'synthwave',
+  MenuScene:           'synthwave',
+  GameOverScene:       'mountains',
+  VictoryScene:        'dyinguniverse',
+  ModSelectScene:      'djconsole',
+  BreakoutScene:       'datamatrix',
+  SpaceInvadersScene:  'cyberswarm',
+  AsteroidsScene:      'datavoid',
+  FroggerScene:        'bitstream',
+  PacmanScene:         'cybermaze',
+  TetrisScene:         'datacore',
 };
 
 const MODE_BG = {
@@ -940,7 +1354,6 @@ const AudioBackground = {
 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    if ((vw - GAME_W) / 2 < 30) return;
 
     this._ready = true;
     this._vw = vw;
@@ -1018,6 +1431,42 @@ const AudioBackground = {
         fragmentShader: WARP_FRAG,
         depthWrite: false, depthTest: false,
       }),
+      datamatrix: new THREE.ShaderMaterial({
+        uniforms:       makeUniforms(vw, vh, pr),
+        vertexShader:   VERT,
+        fragmentShader: DATAMATRIX_FRAG,
+        depthWrite: false, depthTest: false,
+      }),
+      cyberswarm: new THREE.ShaderMaterial({
+        uniforms:       makeUniforms(vw, vh, pr),
+        vertexShader:   VERT,
+        fragmentShader: CYBERSWARM_FRAG,
+        depthWrite: false, depthTest: false,
+      }),
+      datavoid: new THREE.ShaderMaterial({
+        uniforms:       makeUniforms(vw, vh, pr),
+        vertexShader:   VERT,
+        fragmentShader: DATAVOID_FRAG,
+        depthWrite: false, depthTest: false,
+      }),
+      bitstream: new THREE.ShaderMaterial({
+        uniforms:       makeUniforms(vw, vh, pr),
+        vertexShader:   VERT,
+        fragmentShader: BITSTREAM_FRAG,
+        depthWrite: false, depthTest: false,
+      }),
+      cybermaze: new THREE.ShaderMaterial({
+        uniforms:       makeUniforms(vw, vh, pr),
+        vertexShader:   VERT,
+        fragmentShader: CYBERMAZE_FRAG,
+        depthWrite: false, depthTest: false,
+      }),
+      datacore: new THREE.ShaderMaterial({
+        uniforms:       makeUniforms(vw, vh, pr),
+        vertexShader:   VERT,
+        fragmentShader: DATACORE_FRAG,
+        depthWrite: false, depthTest: false,
+      }),
     };
 
     this._materials.warp.uniforms.brightness.value = 1.0;
@@ -1027,6 +1476,12 @@ const AudioBackground = {
     this._materials.mountains.uniforms.tint.value.set(0.07, 0.01, 0.02);
     this._materials.dyinguniverse.uniforms.tint.value.set(0.03, 0.05, 0.01);
     this._materials.djconsole.uniforms.tint.value.set(0.05, 0.01, 0.06);
+    this._materials.datamatrix.uniforms.tint.value.set(0.0, 0.02, 0.05);
+    this._materials.cyberswarm.uniforms.tint.value.set(0.05, 0.01, 0.01);
+    this._materials.datavoid.uniforms.tint.value.set(0.02, 0.0, 0.04);
+    this._materials.bitstream.uniforms.tint.value.set(0.0, 0.02, 0.04);
+    this._materials.cybermaze.uniforms.tint.value.set(0.01, 0.02, 0.05);
+    this._materials.datacore.uniforms.tint.value.set(0.02, 0.01, 0.04);
 
     this._quad = new THREE.Mesh(
       new THREE.PlaneGeometry(vw, vh),
@@ -1037,6 +1492,7 @@ const AudioBackground = {
     this._current = 'synthwave';
 
     this._clock = new THREE.Clock();
+    ThreeSceneOverlay.init(vw, vh, pr);
     const loop = () => { requestAnimationFrame(loop); this._update(); };
     requestAnimationFrame(loop);
 
@@ -1046,10 +1502,16 @@ const AudioBackground = {
   setScene(sceneName, mode) {
     if (!this._ready) return;
     if (this._warpActive) return;
+    ThreeSceneOverlay.setScene(sceneName);
     const target = SCENE_MAP[sceneName] || (mode && MODE_BG[mode]) || 'universe';
     if (target === this._current) return;
     this._current = target;
     this._quad.material = this._materials[target];
+  },
+
+  setFocus(sceneName, x, y) {
+    if (!this._ready || this._warpActive) return;
+    ThreeSceneOverlay.setFocus(sceneName, x, y);
   },
 
   startWarp(durationMs = 2800, onMidpoint, onComplete) {
@@ -1072,6 +1534,7 @@ const AudioBackground = {
 
   stopWarp(targetScene, mode) {
     this._warpActive = false;
+    ThreeSceneOverlay.setScene(targetScene);
     const target = (targetScene && SCENE_MAP[targetScene])
       || (mode && MODE_BG[mode])
       || this._preWarpTarget || 'universe';
@@ -1130,6 +1593,7 @@ const AudioBackground = {
     }
 
     this.renderer.render(this.scene, this.camera);
+    ThreeSceneOverlay.update(u.iTime.value, ar);
   },
 
   _resize() {
@@ -1152,6 +1616,7 @@ const AudioBackground = {
     for (const key in this._materials) {
       this._materials[key].uniforms.iResolution.value.set(vw * pr, vh * pr);
     }
+    ThreeSceneOverlay.resize(vw, vh, pr);
   },
 };
 

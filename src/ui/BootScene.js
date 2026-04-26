@@ -10,15 +10,6 @@ export class BootScene extends Phaser.Scene {
   preload() {
     SFX.init();
     this.generateTextures();
-    this.loadBGM();
-  }
-
-  loadBGM() {
-    this.load.audio('bgm_menu', 'assets/audio/BGM/BGM_menu.mp3');
-    this.load.audio('bgm_epic', 'assets/audio/BGM/BGM_Epic.mp3');
-    this.load.audio('bgm_intense', 'assets/audio/BGM/BGM_intense.mp3');
-    this.load.audio('bgm_reassurance', 'assets/audio/BGM/BGM_reassurance.mp3');
-    this.load.audio('bgm_rock', 'assets/audio/BGM/BGM_rock.mp3');
   }
 
   generateTextures() {
@@ -36,52 +27,84 @@ export class BootScene extends Phaser.Scene {
     this.genMothership();
     this.genPixel();
     this.genPowerUps();
+    this.genSnakeTextures();
+    this.genPinballTextures();
+    this.genFallDownTextures();
   }
 
   genPortalPellet() {
     const g = this.make.graphics({ add: false });
-    g.fillStyle(COLORS.NEON_PURPLE, 0.3);
+    g.fillStyle(COLORS.NEON_PURPLE, 0.15);
     g.fillCircle(8, 8, 8);
-    g.fillStyle(COLORS.PORTAL_CORE, 0.6);
-    g.fillCircle(8, 8, 6);
+    g.lineStyle(1, COLORS.NEON_PURPLE, 0.4);
+    g.strokeCircle(8, 8, 7);
+    g.fillStyle(COLORS.PORTAL_CORE, 0.5);
+    g.fillCircle(8, 8, 5);
     g.fillStyle(COLORS.PORTAL_CORE, 1);
-    g.fillCircle(8, 8, 4);
+    g.fillCircle(8, 8, 3);
     g.fillStyle(COLORS.WHITE, 0.9);
-    g.fillCircle(8, 8, 2);
+    g.fillCircle(8, 8, 1.5);
     g.generateTexture('portal-pellet', 16, 16);
     g.destroy();
   }
 
   genDot() {
     const g = this.make.graphics({ add: false });
-    g.fillStyle(COLORS.NEON_CYAN, 0.5);
-    g.fillCircle(3, 3, 3);
+    g.fillStyle(COLORS.NEON_CYAN, 0.3);
+    g.fillRect(1, 1, 4, 4);
     g.fillStyle(COLORS.WHITE, 0.9);
-    g.fillCircle(3, 3, 1.5);
+    g.fillRect(2, 2, 2, 2);
     g.generateTexture('dot', 6, 6);
     g.destroy();
   }
 
   genPowerPellet() {
     const g = this.make.graphics({ add: false });
-    g.fillStyle(COLORS.NEON_CYAN, 0.3);
+    g.fillStyle(COLORS.NEON_CYAN, 0.2);
     g.fillCircle(7, 7, 7);
-    g.fillStyle(COLORS.WHITE, 0.8);
-    g.fillCircle(7, 7, 5);
+    g.lineStyle(1, COLORS.NEON_CYAN, 0.6);
+    g.strokeCircle(7, 7, 6);
+    g.fillStyle(COLORS.NEON_CYAN, 0.7);
+    g.fillCircle(7, 7, 4);
     g.fillStyle(COLORS.WHITE, 1);
-    g.fillCircle(7, 7, 3);
+    g.fillCircle(7, 7, 2);
+    g.lineStyle(1, COLORS.WHITE, 0.3);
+    g.strokeCircle(7, 7, 5);
     g.generateTexture('power-pellet', 14, 14);
     g.destroy();
   }
 
   genPacman() {
     const g = this.make.graphics({ add: false });
-    g.fillStyle(COLORS.NEON_YELLOW, 0.2);
+    g.fillStyle(COLORS.NEON_YELLOW, 0.08);
     g.fillCircle(12, 12, 12);
-    g.fillStyle(COLORS.NEON_YELLOW, 1);
-    g.fillCircle(12, 12, 10);
+    g.fillStyle(COLORS.NEON_ORANGE, 0.12);
+    g.fillCircle(12, 12, 10.5);
+    g.lineStyle(2, COLORS.NEON_YELLOW, 0.25);
+    g.strokeCircle(12, 12, 11.5);
+    g.lineStyle(1.5, COLORS.NEON_YELLOW, 0.7);
+    g.strokeCircle(12, 12, 10.2);
+    g.fillStyle(COLORS.NEON_YELLOW, 0.88);
+    g.fillCircle(12, 12, 8.5);
     g.fillStyle(COLORS.BG_DARK, 1);
     g.fillTriangle(12, 12, 24, 6, 24, 18);
+    g.lineStyle(1, COLORS.NEON_YELLOW, 0.55);
+    g.beginPath();
+    g.moveTo(12, 12); g.lineTo(24, 6);
+    g.strokePath();
+    g.beginPath();
+    g.moveTo(12, 12); g.lineTo(24, 18);
+    g.strokePath();
+    g.lineStyle(1, COLORS.NEON_ORANGE, 0.45);
+    g.beginPath();
+    g.moveTo(6, 6); g.lineTo(12, 12); g.lineTo(6, 18);
+    g.strokePath();
+    g.lineStyle(1, COLORS.WHITE, 0.8);
+    g.strokeCircle(12, 12, 5.5);
+    g.fillStyle(COLORS.BG_DARK, 1);
+    g.fillCircle(11, 8, 1.2);
+    g.fillStyle(COLORS.WHITE, 0.8);
+    g.fillCircle(10.6, 7.6, 0.45);
     g.generateTexture('pacman', 24, 24);
     g.destroy();
   }
@@ -93,21 +116,52 @@ export class BootScene extends Phaser.Scene {
       ['ghost-cyan', COLORS.NEON_CYAN],
       ['ghost-orange', COLORS.NEON_ORANGE],
     ];
-    ghostDefs.forEach(([key, color]) => {
+    ghostDefs.forEach(([key, color], index) => {
       const g = this.make.graphics({ add: false });
-      g.fillStyle(color, 0.15);
-      g.fillRoundedRect(-2, -2, 24, 24, { tl: 12, tr: 12, bl: 0, br: 0 });
-      g.fillStyle(color, 1);
-      g.fillRoundedRect(0, 0, 20, 20, { tl: 10, tr: 10, bl: 0, br: 0 });
-      g.fillRect(0, 10, 20, 10);
-      g.lineStyle(1, COLORS.WHITE, 0.3);
-      g.strokeRoundedRect(0, 0, 20, 20, { tl: 10, tr: 10, bl: 0, br: 0 });
+      g.fillStyle(color, 0.1);
+      g.fillCircle(12, 10, 12);
+      g.lineStyle(2, color, 0.18);
+      g.strokeCircle(12, 10, 11);
+      g.lineStyle(1.5, color, 0.9);
+      g.beginPath();
+      g.moveTo(5, 17);
+      g.lineTo(5, 9);
+      g.lineTo(8.5, 4);
+      g.lineTo(15.5, 4);
+      g.lineTo(19, 9);
+      g.lineTo(19, 17);
+      g.lineTo(16.5, 20);
+      g.lineTo(14, 17.5);
+      g.lineTo(12, 20);
+      g.lineTo(10, 17.5);
+      g.lineTo(7.5, 20);
+      g.closePath();
+      g.strokePath();
+      g.lineStyle(1, color, 0.35);
+      g.lineBetween(8, 7, 16, 7);
+      g.lineBetween(7, 12, 17, 12);
+      g.lineBetween(8, 16, 16, 16);
+      if (index === 0) {
+        g.lineBetween(12, 5, 12, 17);
+      } else if (index === 1) {
+        g.lineBetween(8, 7, 12, 16);
+        g.lineBetween(16, 7, 12, 16);
+      } else if (index === 2) {
+        g.strokeCircle(12, 11, 4);
+      } else {
+        g.lineBetween(9, 6, 15, 18);
+        g.lineBetween(15, 6, 9, 18);
+      }
       g.fillStyle(COLORS.WHITE, 1);
-      g.fillCircle(6, 8, 3);
-      g.fillCircle(14, 8, 3);
-      g.fillStyle(COLORS.NEON_BLUE, 1);
-      g.fillCircle(7, 8, 1.5);
-      g.fillCircle(15, 8, 1.5);
+      g.fillTriangle(8, 8, 10.5, 10, 8, 12);
+      g.fillTriangle(16, 8, 13.5, 10, 16, 12);
+      g.fillStyle(color, 0.6);
+      g.fillCircle(12, 13, 1.5);
+      g.lineStyle(1, color, 0.55);
+      g.lineBetween(6, 18, 4.5, 22);
+      g.lineBetween(10, 18, 9, 21);
+      g.lineBetween(14, 18, 15, 22);
+      g.lineBetween(18, 18, 19.5, 21);
       g.generateTexture(key, 24, 24);
       g.destroy();
     });
@@ -115,42 +169,80 @@ export class BootScene extends Phaser.Scene {
 
   genBreakout() {
     const g = this.make.graphics({ add: false });
+    g.fillStyle(COLORS.NEON_CYAN, 0.06);
+    g.fillRoundedRect(0, 0, 84, 14, 5);
+    g.lineStyle(2, COLORS.NEON_CYAN, 0.2);
+    g.strokeRoundedRect(1, 1, 82, 12, 5);
+    g.lineStyle(1.5, COLORS.NEON_CYAN, 0.9);
+    g.beginPath();
+    g.moveTo(10, 1);
+    g.lineTo(74, 1);
+    g.lineTo(82, 7);
+    g.lineTo(74, 13);
+    g.lineTo(10, 13);
+    g.lineTo(2, 7);
+    g.closePath();
+    g.strokePath();
+    g.lineStyle(1, COLORS.NEON_CYAN, 0.28);
+    for (let x = 14; x < 74; x += 10) {
+      g.lineBetween(x, 3, x + 3, 11);
+    }
     g.fillStyle(COLORS.NEON_CYAN, 0.2);
-    g.fillRect(-2, -1, 84, 14);
-    g.fillStyle(COLORS.WHITE, 1);
-    g.fillRect(0, 0, 80, 12);
-    g.lineStyle(1, COLORS.NEON_CYAN, 0.6);
-    g.strokeRect(0, 0, 80, 12);
+    g.fillRoundedRect(30, 3, 24, 8, 3);
+    g.lineStyle(1, COLORS.WHITE, 0.55);
+    g.strokeRect(34, 5, 16, 4);
+    g.fillStyle(COLORS.WHITE, 0.18);
+    g.fillRect(36, 6, 12, 2);
     g.generateTexture('paddle', 84, 14);
     g.destroy();
 
     const bg = this.make.graphics({ add: false });
-    bg.fillStyle(COLORS.WHITE, 0.2);
-    bg.fillCircle(5, 5, 5);
+    bg.fillStyle(COLORS.NEON_CYAN, 0.12);
+    bg.fillCircle(8, 8, 8);
+    bg.fillStyle(COLORS.NEON_MAGENTA, 0.14);
+    bg.fillCircle(8, 8, 6.5);
+    bg.lineStyle(1.2, COLORS.NEON_CYAN, 0.7);
+    bg.strokeCircle(8, 8, 5.2);
+    bg.lineStyle(1, COLORS.WHITE, 0.5);
+    bg.strokeCircle(8, 8, 3.3);
     bg.fillStyle(COLORS.WHITE, 1);
-    bg.fillCircle(5, 5, 4);
-    bg.generateTexture('ball', 10, 10);
+    bg.fillCircle(8, 8, 2.4);
+    bg.fillStyle(COLORS.NEON_CYAN, 0.45);
+    bg.fillCircle(6.4, 6.2, 1.6);
+    bg.generateTexture('ball', 16, 16);
     bg.destroy();
 
     const brickDefs = [
-      ['brick-red', COLORS.NEON_RED],
-      ['brick-orange', COLORS.NEON_ORANGE],
-      ['brick-yellow', COLORS.NEON_YELLOW],
-      ['brick-green', COLORS.NEON_GREEN],
-      ['brick-cyan', COLORS.NEON_CYAN],
-      ['brick-blue', COLORS.NEON_BLUE],
-      ['brick-portal', COLORS.PORTAL_GLOW],
+      ['brick-red', COLORS.NEON_RED, 'ERR'],
+      ['brick-orange', COLORS.NEON_ORANGE, '0xFF'],
+      ['brick-yellow', COLORS.NEON_YELLOW, 'DATA'],
+      ['brick-green', COLORS.NEON_GREEN, 'ENC'],
+      ['brick-cyan', COLORS.NEON_CYAN, 'SYS'],
+      ['brick-blue', COLORS.NEON_BLUE, 'KEY'],
+      ['brick-portal', COLORS.PORTAL_GLOW, 'RIFT'],
     ];
-    brickDefs.forEach(([key, color]) => {
+    brickDefs.forEach(([key, color, label]) => {
       const b = this.make.graphics({ add: false });
-      b.fillStyle(color, 0.15);
-      b.fillRect(-1, -1, 50, 18);
-      b.fillStyle(color, 0.9);
-      b.fillRect(0, 0, 48, 16);
-      b.lineStyle(1, COLORS.WHITE, 0.25);
-      b.strokeRect(0, 0, 48, 16);
-      b.lineStyle(1, color, 0.5);
-      b.strokeRect(-1, -1, 50, 18);
+      b.fillStyle(color, 0.06);
+      b.fillRoundedRect(0, 0, 50, 18, 3);
+      b.fillStyle(COLORS.BG_DARK, 0.92);
+      b.fillRoundedRect(1, 1, 48, 16, 3);
+      b.lineStyle(1.5, color, 0.85);
+      b.strokeRoundedRect(1, 1, 48, 16, 3);
+      b.lineStyle(1, color, 0.18);
+      b.strokeRoundedRect(0, 0, 50, 18, 3);
+      b.lineStyle(1, color, 0.18);
+      b.lineBetween(5, 5, 45, 5);
+      b.lineBetween(5, 13, 45, 13);
+      const segments = Math.min(6, label.length + 2);
+      for (let i = 0; i < segments; i++) {
+        const x = 6 + i * 7;
+        b.lineStyle(1, color, 0.35 - i * 0.03);
+        b.lineBetween(x, 8.8, x + 3, 8.8);
+      }
+      b.fillStyle(COLORS.WHITE, 0.12);
+      b.fillRect(4, 4, 10, 2);
+      b.fillRect(34, 12, 9, 2);
       b.generateTexture(key, 50, 18);
       b.destroy();
     });
@@ -158,55 +250,101 @@ export class BootScene extends Phaser.Scene {
 
   genSpaceInvaders() {
     const g = this.make.graphics({ add: false });
-    const pattern = [
-      [0,0,1,0,0,0,0,0,1,0,0],
-      [0,0,0,1,0,0,0,1,0,0,0],
-      [0,0,1,1,1,1,1,1,1,0,0],
-      [0,1,1,0,1,1,1,0,1,1,0],
-      [1,1,1,1,1,1,1,1,1,1,1],
-      [1,0,1,1,1,1,1,1,1,0,1],
-      [1,0,1,0,0,0,0,0,1,0,1],
-      [0,0,0,1,1,0,1,1,0,0,0],
-    ];
-    g.fillStyle(COLORS.NEON_GREEN, 0.15);
-    g.fillRect(-1, -1, 24, 18);
-    g.fillStyle(COLORS.NEON_GREEN, 1);
-    pattern.forEach((row, ry) => row.forEach((v, rx) => {
-      if (v) g.fillRect(rx * 2, ry * 2, 2, 2);
-    }));
+    g.fillStyle(COLORS.NEON_RED, 0.06);
+    g.fillCircle(12, 9, 11);
+    g.lineStyle(2, COLORS.NEON_RED, 0.18);
+    g.strokeCircle(12, 9, 10);
+    g.lineStyle(1.5, COLORS.NEON_RED, 0.9);
+    g.strokeTriangle(12, 2, 5, 8, 19, 8);
+    g.strokeRect(7, 8, 10, 6);
+    g.lineStyle(1, COLORS.NEON_RED, 0.55);
+    g.lineBetween(5, 8, 2, 4);
+    g.lineBetween(19, 8, 22, 4);
+    g.lineBetween(7, 11, 2, 16);
+    g.lineBetween(17, 11, 22, 16);
+    g.lineBetween(9, 14, 6, 18);
+    g.lineBetween(15, 14, 18, 18);
+    g.lineBetween(12, 3, 12, 14);
+    g.fillStyle(COLORS.WHITE, 0.9);
+    g.fillCircle(12, 7, 1.8);
     g.generateTexture('invader', 24, 18);
     g.destroy();
 
     const sg = this.make.graphics({ add: false });
-    sg.fillStyle(COLORS.NEON_GREEN, 0.2);
-    sg.fillTriangle(12, -2, -2, 20, 26, 20);
-    sg.fillStyle(COLORS.NEON_GREEN, 1);
-    sg.fillTriangle(10, 0, 0, 18, 20, 18);
-    sg.lineStyle(1, COLORS.NEON_GREEN, 0.4);
-    sg.strokeTriangle(10, 0, 0, 18, 20, 18);
+    sg.fillStyle(COLORS.NEON_ORANGE, 0.08);
+    sg.fillCircle(13, 10, 12);
+    sg.lineStyle(1.5, COLORS.NEON_ORANGE, 0.9);
+    sg.beginPath();
+    sg.moveTo(2, 12);
+    sg.lineTo(8, 6);
+    sg.lineTo(13, 2);
+    sg.lineTo(18, 6);
+    sg.lineTo(24, 12);
+    sg.lineTo(18, 18);
+    sg.lineTo(8, 18);
+    sg.closePath();
+    sg.strokePath();
+    sg.lineStyle(1, COLORS.NEON_ORANGE, 0.45);
+    sg.lineBetween(5, 12, 21, 12);
+    sg.lineBetween(13, 3, 13, 18);
+    sg.lineBetween(8, 6, 18, 18);
+    sg.lineBetween(18, 6, 8, 18);
+    sg.fillStyle(COLORS.NEON_ORANGE, 0.28);
+    sg.fillCircle(13, 11, 4);
+    sg.fillStyle(COLORS.WHITE, 0.8);
+    sg.fillCircle(13, 11, 1.7);
     sg.generateTexture('player-ship', 26, 20);
     sg.destroy();
+
+    const sh = this.make.graphics({ add: false });
+    sh.fillStyle(0xffd700, 0.06);
+    sh.beginPath();
+    sh.moveTo(4, 1);
+    sh.lineTo(36, 1);
+    sh.lineTo(39, 28);
+    sh.lineTo(1, 28);
+    sh.closePath();
+    sh.fillPath();
+    sh.lineStyle(1.5, 0xffd700, 0.65);
+    sh.beginPath();
+    sh.moveTo(4, 1);
+    sh.lineTo(36, 1);
+    sh.lineTo(39, 28);
+    sh.lineTo(1, 28);
+    sh.closePath();
+    sh.strokePath();
+    for (let y = 5; y < 26; y += 5) {
+      sh.lineStyle(1, 0xffd700, 0.18);
+      sh.lineBetween(4, y, 36, y + 1);
+    }
+    for (let x = 8; x < 34; x += 7) {
+      sh.lineStyle(1, 0xffd700, 0.16);
+      sh.lineBetween(x, 3, x + 3, 26);
+    }
+    sh.generateTexture('shield', 40, 30);
+    sh.destroy();
   }
 
   genAsteroids() {
     const sg = this.make.graphics({ add: false });
-
-    sg.fillStyle(COLORS.NEON_CYAN, 0.12);
-    sg.fillTriangle(26, 14, 4, 2, 4, 26);
-
-    sg.lineStyle(2, COLORS.NEON_CYAN, 0.25);
-    sg.strokeTriangle(27, 14, 3, 1, 3, 27);
-
-    sg.lineStyle(2, COLORS.NEON_CYAN, 1);
-    sg.strokeTriangle(26, 14, 4, 2, 4, 26);
-
-    sg.lineStyle(1, COLORS.NEON_CYAN, 0.5);
-    sg.lineBetween(4, 8, 9, 14);
-    sg.lineBetween(9, 14, 4, 20);
-
-    sg.lineStyle(1.5, COLORS.WHITE, 0.8);
-    sg.lineBetween(14, 14, 26, 14);
-
+    sg.fillStyle(COLORS.NEON_CYAN, 0.07);
+    sg.fillCircle(14, 14, 13);
+    sg.lineStyle(1.5, COLORS.WHITE, 0.95);
+    sg.beginPath();
+    sg.moveTo(25, 14);
+    sg.lineTo(7, 3);
+    sg.lineTo(10, 14);
+    sg.lineTo(7, 25);
+    sg.closePath();
+    sg.strokePath();
+    sg.lineStyle(1, COLORS.NEON_CYAN, 0.35);
+    sg.lineBetween(10, 14, 24, 14);
+    sg.lineBetween(8, 4, 18, 14);
+    sg.lineBetween(8, 24, 18, 14);
+    sg.fillStyle(COLORS.NEON_CYAN, 0.4);
+    sg.fillCircle(5, 14, 3.5);
+    sg.fillStyle(COLORS.WHITE, 0.6);
+    sg.fillCircle(5.5, 14, 1.6);
     sg.generateTexture('asteroid-ship', 28, 28);
     sg.destroy();
 
@@ -219,18 +357,33 @@ export class BootScene extends Phaser.Scene {
         const vary = 0.7 + Math.random() * 0.3;
         points.push({ x: cx + Math.cos(angle) * r * vary, y: cy + Math.sin(angle) * r * vary });
       }
-      g.lineStyle(2, COLORS.NEON_PURPLE, 0.2);
+      g.fillStyle(0x12001f, 0.92);
+      g.beginPath();
+      g.moveTo(points[0].x, points[0].y);
+      points.forEach(p => g.lineTo(p.x, p.y));
+      g.closePath();
+      g.fillPath();
+      g.lineStyle(3, COLORS.NEON_PURPLE, 0.12);
       g.beginPath();
       g.moveTo(points[0].x + 1, points[0].y + 1);
       points.forEach(p => g.lineTo(p.x + 1, p.y + 1));
       g.closePath();
       g.strokePath();
-      g.lineStyle(2, COLORS.NEON_CYAN, 1);
+      g.lineStyle(1.5, COLORS.NEON_PURPLE, 0.9);
       g.beginPath();
       g.moveTo(points[0].x, points[0].y);
       points.forEach(p => g.lineTo(p.x, p.y));
       g.closePath();
       g.strokePath();
+      g.fillStyle(COLORS.NEON_PURPLE, 0.08);
+      g.fillCircle(cx, cy, Math.max(3, size * 0.18));
+      if (size > 14) {
+        g.lineStyle(1, COLORS.NEON_PURPLE, 0.65);
+        g.lineBetween(cx - r * 0.3, cy - r * 0.2, cx + r * 0.4, cy + r * 0.3);
+        g.lineBetween(cx + r * 0.1, cy - r * 0.4, cx - r * 0.2, cy + r * 0.3);
+        g.lineStyle(1, COLORS.WHITE, 0.22);
+        g.lineBetween(cx - r * 0.12, cy + r * 0.05, cx + r * 0.2, cy - r * 0.18);
+      }
       g.generateTexture(key, size, size);
       g.destroy();
     });
@@ -238,73 +391,145 @@ export class BootScene extends Phaser.Scene {
 
   genFrogger() {
     const fg = this.make.graphics({ add: false });
-    fg.fillStyle(COLORS.NEON_GREEN, 0.2);
-    fg.fillRoundedRect(0, 0, 22, 22, 5);
+    fg.fillStyle(COLORS.NEON_GREEN, 0.08);
+    fg.fillCircle(11, 11, 11);
+    fg.lineStyle(1.5, COLORS.NEON_GREEN, 0.8);
+    fg.beginPath();
+    fg.moveTo(4, 8);
+    fg.lineTo(8, 4);
+    fg.lineTo(14, 4);
+    fg.lineTo(18, 8);
+    fg.lineTo(18, 15);
+    fg.lineTo(14, 19);
+    fg.lineTo(8, 19);
+    fg.lineTo(4, 15);
+    fg.closePath();
+    fg.strokePath();
+    fg.lineStyle(2, COLORS.NEON_GREEN, 0.45);
+    fg.lineBetween(7, 6, 6, 16);
+    fg.lineBetween(15, 6, 16, 16);
+    fg.lineStyle(1, COLORS.NEON_GREEN, 0.3);
+    fg.lineBetween(8, 12, 14, 12);
+    fg.lineBetween(11, 6, 11, 17);
+    fg.fillStyle(COLORS.WHITE, 0.9);
+    fg.fillCircle(8, 8, 1.8);
+    fg.fillCircle(14, 8, 1.8);
     fg.fillStyle(COLORS.NEON_GREEN, 1);
-    fg.fillRoundedRect(2, 2, 18, 18, 4);
-    fg.fillStyle(COLORS.WHITE, 0.8);
-    fg.fillCircle(7, 7, 2);
-    fg.fillCircle(15, 7, 2);
-    fg.fillStyle(COLORS.BG_DARK, 1);
-    fg.fillCircle(7, 7, 1);
-    fg.fillCircle(15, 7, 1);
+    fg.fillCircle(8, 8, 0.8);
+    fg.fillCircle(14, 8, 0.8);
     fg.generateTexture('frog', 22, 22);
     fg.destroy();
 
     ['car-red', 'car-blue', 'car-yellow'].forEach((key, i) => {
-      const color = [COLORS.NEON_RED, COLORS.NEON_BLUE, COLORS.NEON_YELLOW][i];
+      const color = [COLORS.NEON_CYAN, COLORS.NEON_BLUE, COLORS.NEON_YELLOW][i];
       const g = this.make.graphics({ add: false });
-      g.fillStyle(color, 0.15);
-      g.fillRoundedRect(-1, 0, 34, 18, 4);
-      g.fillStyle(color, 1);
-      g.fillRoundedRect(0, 2, 32, 14, 3);
-      g.lineStyle(1, COLORS.WHITE, 0.2);
-      g.strokeRoundedRect(0, 2, 32, 14, 3);
+      g.fillStyle(color, 0.07);
+      g.fillRoundedRect(0, 1, 34, 16, 4);
+      g.lineStyle(1.5, color, 0.8);
+      g.beginPath();
+      g.moveTo(2, 8);
+      g.lineTo(8, 2);
+      g.lineTo(28, 2);
+      g.lineTo(32, 8);
+      g.lineTo(28, 16);
+      g.lineTo(8, 16);
+      g.closePath();
+      g.strokePath();
+      g.lineStyle(1, color, 0.28);
+      g.lineBetween(5, 6, 18, 6);
+      g.lineBetween(5, 10, 22, 10);
+      g.lineBetween(5, 13, 15, 13);
       g.fillStyle(COLORS.WHITE, 0.5);
-      g.fillRect(24, 5, 5, 8);
+      g.fillRect(28, 5, 3, 6);
       g.generateTexture(key, 34, 18);
       g.destroy();
     });
 
     const lg = this.make.graphics({ add: false });
-    lg.fillStyle(0x5D4037, 1);
-    lg.fillRoundedRect(0, 2, 64, 14, 5);
-    lg.lineStyle(1, 0x8D6E63, 0.4);
-    lg.strokeRoundedRect(0, 2, 64, 14, 5);
+    lg.fillStyle(COLORS.NEON_CYAN, 0.06);
+    lg.beginPath();
+    lg.moveTo(4, 2);
+    lg.lineTo(60, 2);
+    lg.lineTo(63, 9);
+    lg.lineTo(60, 16);
+    lg.lineTo(4, 16);
+    lg.lineTo(1, 9);
+    lg.closePath();
+    lg.fillPath();
+    lg.lineStyle(1.5, COLORS.NEON_CYAN, 0.65);
+    lg.beginPath();
+    lg.moveTo(4, 2);
+    lg.lineTo(60, 2);
+    lg.lineTo(63, 9);
+    lg.lineTo(60, 16);
+    lg.lineTo(4, 16);
+    lg.lineTo(1, 9);
+    lg.closePath();
+    lg.strokePath();
+    for (let gx = 10; gx < 60; gx += 12) {
+      lg.lineStyle(1, COLORS.NEON_CYAN, 0.15);
+      lg.lineBetween(gx, 5, gx + 2, 13);
+    }
     lg.generateTexture('log', 64, 18);
     lg.destroy();
 
     const lily = this.make.graphics({ add: false });
-    lily.fillStyle(COLORS.NEON_GREEN, 0.2);
+    lily.fillStyle(COLORS.NEON_GREEN, 0.1);
     lily.fillCircle(12, 12, 12);
-    lily.fillStyle(0x228B22, 1);
-    lily.fillCircle(12, 12, 10);
-    lily.fillStyle(0x006400, 1);
-    lily.fillTriangle(12, 12, 22, 7, 22, 17);
+    lily.lineStyle(1.5, COLORS.NEON_GREEN, 0.7);
+    // Hexagon
+    const hpts = [];
+    for (let i = 0; i < 6; i++) {
+      const ha = (Math.PI * 2 * i) / 6 - Math.PI / 6;
+      hpts.push({ x: 12 + Math.cos(ha) * 9, y: 12 + Math.sin(ha) * 9 });
+    }
+    lily.beginPath();
+    lily.moveTo(hpts[0].x, hpts[0].y);
+    hpts.forEach(p => lily.lineTo(p.x, p.y));
+    lily.closePath();
+    lily.strokePath();
+    lily.fillStyle(COLORS.NEON_GREEN, 0.3);
+    lily.fillCircle(12, 12, 4);
+    lily.lineStyle(1, COLORS.WHITE, 0.2);
+    lily.strokeCircle(12, 12, 5.5);
     lily.generateTexture('lilypad', 24, 24);
     lily.destroy();
 
     const pl = this.make.graphics({ add: false });
-    pl.fillStyle(COLORS.PORTAL_GLOW, 0.3);
+    pl.fillStyle(COLORS.PORTAL_GLOW, 0.15);
     pl.fillCircle(12, 12, 12);
-    pl.fillStyle(COLORS.PORTAL_GLOW, 1);
-    pl.fillCircle(12, 12, 10);
-    pl.fillStyle(COLORS.WHITE, 0.4);
+    pl.lineStyle(1.5, COLORS.PORTAL_GLOW, 0.8);
+    pl.strokeCircle(12, 12, 10);
+    pl.fillStyle(COLORS.PORTAL_GLOW, 0.5);
     pl.fillCircle(12, 12, 5);
+    pl.fillStyle(COLORS.WHITE, 0.6);
+    pl.fillCircle(12, 12, 2);
     pl.generateTexture('lilypad-portal', 24, 24);
     pl.destroy();
   }
 
   genTetris() {
     const g = this.make.graphics({ add: false });
-    g.fillStyle(COLORS.WHITE, 0.15);
-    g.fillRect(-1, -1, 26, 26);
+    g.fillStyle(COLORS.NEON_CYAN, 0.08);
+    g.fillRect(0, 0, 26, 26);
+    g.fillStyle(COLORS.BG_MID, 0.65);
+    g.fillRect(1, 1, 24, 24);
+    g.fillStyle(COLORS.WHITE, 0.08);
+    g.fillRect(3, 3, 8, 8);
+    g.fillStyle(COLORS.WHITE, 0.04);
+    g.fillRect(12, 12, 10, 10);
+    g.lineStyle(1.5, COLORS.WHITE, 0.9);
+    g.strokeRect(1, 1, 24, 24);
+    g.lineStyle(2.5, COLORS.NEON_CYAN, 0.18);
+    g.strokeRect(1, 1, 24, 24);
+    g.lineStyle(1, COLORS.WHITE, 0.3);
+    g.lineBetween(4, 5, 16, 5);
+    g.lineBetween(4, 20, 13, 20);
+    g.lineBetween(20, 4, 20, 12);
+    g.fillStyle(COLORS.WHITE, 0.45);
+    g.fillRect(9, 9, 8, 8);
     g.fillStyle(COLORS.WHITE, 0.9);
-    g.fillRect(0, 0, 24, 24);
-    g.lineStyle(1, COLORS.NEON_CYAN, 0.4);
-    g.strokeRect(0, 0, 24, 24);
-    g.lineStyle(1, COLORS.WHITE, 0.15);
-    g.strokeRect(2, 2, 20, 20);
+    g.fillRect(11, 11, 4, 4);
     g.generateTexture('tetris-block', 26, 26);
     g.destroy();
   }
@@ -328,15 +553,21 @@ export class BootScene extends Phaser.Scene {
   }
 
   genMothership() {
+    // Boss virus: complex geometric neon red construction
     const g = this.make.graphics({ add: false });
-    g.fillStyle(COLORS.NEON_RED, 0.2);
-    g.fillEllipse(18, 10, 36, 18);
-    g.fillStyle(COLORS.NEON_RED, 1);
-    g.fillEllipse(16, 8, 32, 14);
-    g.fillStyle(COLORS.NEON_PINK, 0.8);
-    g.fillEllipse(16, 6, 20, 6);
+    g.fillStyle(COLORS.NEON_RED, 0.08);
+    g.fillEllipse(18, 9, 36, 18);
+    g.lineStyle(1.5, COLORS.NEON_RED, 0.8);
+    g.strokeEllipse(18, 9, 32, 14);
     g.lineStyle(1, COLORS.NEON_RED, 0.4);
-    g.strokeEllipse(16, 8, 32, 14);
+    g.strokeEllipse(18, 9, 24, 8);
+    // Geometric detail
+    g.lineStyle(1, COLORS.NEON_RED, 0.5);
+    g.lineBetween(6, 9, 30, 9);
+    g.lineBetween(18, 2, 18, 16);
+    // Core
+    g.fillStyle(COLORS.WHITE, 0.7);
+    g.fillCircle(18, 9, 2);
     g.generateTexture('mothership', 36, 18);
     g.destroy();
   }
@@ -373,6 +604,222 @@ export class BootScene extends Phaser.Scene {
       g.generateTexture(key, 20, 20);
       g.destroy();
     });
+  }
+
+  // 生成贪吃蛇相关纹理：蛇头、蛇身、食物，均带霓虹光效
+  // 生成贪吃蛇相关纹理：蛇头、蛇身、食物，均带霓虹光效
+  genSnakeTextures() {
+    // SNAKE HEAD - 青色发光
+    {
+      const size = 32;
+      const tex = this.textures.createCanvas('snake-head', size, size);
+      const canvas = tex.getSourceImage();
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.clearRect(0, 0, size, size);
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = '#00f0ff';
+      ctx.fillStyle = '#00f0ff';
+      ctx.beginPath();
+      ctx.arc(size/2, size/2, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      tex.refresh(); // <--- 关键修复：通知WebGL刷新纹理
+    }
+    // SNAKE BODY - 稍暗青色
+    {
+      const size = 28;
+      const tex = this.textures.createCanvas('snake-body', size, size);
+      const canvas = tex.getSourceImage();
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.clearRect(0, 0, size, size);
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = '#0099aa';
+      ctx.fillStyle = '#0099aa';
+      ctx.beginPath();
+      ctx.arc(size/2, size/2, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      tex.refresh(); // <--- 关键修复
+    }
+    // SNAKE FOOD - 品红色发光
+    {
+      const size = 24;
+      const tex = this.textures.createCanvas('snake-food', size, size);
+      const canvas = tex.getSourceImage();
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.clearRect(0, 0, size, size);
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#ff00e6';
+      ctx.fillStyle = '#ff00e6';
+      ctx.beginPath();
+      ctx.arc(size/2, size/2, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      tex.refresh(); // <--- 关键修复
+    }
+
+    // 1. VIRUS (红色数据包) - 方案A
+    {
+      const size = 24;
+      const tex = this.textures.createCanvas('food-virus', size, size);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = '#ff1744';
+      ctx.fillStyle = '#ff1744';
+      ctx.beginPath(); ctx.arc(size/2, size/2, 10, 0, Math.PI*2); ctx.fill();
+      tex.refresh();
+    }
+
+    // 2. PATCH (绿色补丁) - 方案A
+    {
+      const size = 24;
+      const tex = this.textures.createCanvas('food-patch', size, size);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = '#39ff14';
+      ctx.fillStyle = '#39ff14';
+      ctx.fillRect(4, 10, 16, 4); ctx.fillRect(10, 4, 4, 16); // 画一个十字
+      tex.refresh();
+    }
+
+    // 3. RESIDUE (残留身体) - 机制2 & 3
+    {
+      const size = 20;
+      const tex = this.textures.createCanvas('snake-residue', size, size);
+      const ctx = tex.getContext();
+      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(2, 2, 16, 16); // 画一个空心框，表示这是“虚影”
+      tex.refresh();
+    }
+  }
+
+  genPinballTextures() {
+    // 1. 弹珠 - 强力白光+青色光晕
+    {
+      const size = 32;
+      const tex = this.textures.createCanvas('pin-ball', size, size);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 15; ctx.shadowColor = '#00f0ff';
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(size/2, size/2, 10, 0, Math.PI*2); ctx.fill();
+      tex.refresh();
+    }
+    // 2. 拨杆 (Flipper) - 霓虹紫色圆角矩形
+    {
+      const tex = this.textures.createCanvas('flipper', 100, 24);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 10; ctx.shadowColor = '#b845ff';
+      ctx.fillStyle = '#b845ff';
+      ctx.beginPath(); ctx.roundRect(0, 0, 100, 24, 12); ctx.fill();
+      tex.refresh();
+    }
+    // 3. 霓虹圈撞击器 (Ring Bumper) - 粉色呼吸光圈
+    {
+      const size = 64;
+      const tex = this.textures.createCanvas('bumper-ring', size, size);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 15; ctx.shadowColor = '#ff00e6';
+      ctx.strokeStyle = '#ff00e6'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(size/2, size/2, 26, 0, Math.PI*2); ctx.stroke();
+      tex.refresh();
+    }
+    // 4. 下落靶 (Drop Target) - 霓虹绿色矩形
+    {
+      const tex = this.textures.createCanvas('target-drop', 40, 20);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 12; ctx.shadowColor = '#39ff14';
+      ctx.fillStyle = '#39ff14';
+      ctx.beginPath(); ctx.roundRect(0, 0, 40, 20, 4); ctx.fill();
+      tex.refresh();
+    }
+    // 5. 霓虹白色边界线 (用于画复杂的机台轨道)
+    {
+      const tex = this.textures.createCanvas('pinball-bound', 20, 20);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 8; ctx.shadowColor = '#ffffff';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(4, 4, 12, 12);
+      tex.refresh();
+    }
+
+    // 6. 巡逻 BOSS (猩红色的浮空菱形核心)
+    {
+      const size = 60;
+      const tex = this.textures.createCanvas('boss', size, size);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 15; ctx.shadowColor = '#ff1744';
+      ctx.fillStyle = '#ff1744';
+      ctx.beginPath(); ctx.moveTo(30, 5); ctx.lineTo(55, 30); ctx.lineTo(30, 55); ctx.lineTo(5, 30); ctx.fill();
+      tex.refresh();
+    }
+    // 7. 虫洞 (紫红双色嵌套的旋转星门)
+    {
+      const size = 80;
+      const tex = this.textures.createCanvas('wormhole', size, size);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 20; ctx.shadowColor = '#8e2de2';
+      ctx.strokeStyle = '#4a00e0'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(40, 40, 30, 0, Math.PI*2); ctx.stroke();
+      ctx.strokeStyle = '#ff00e6'; ctx.lineWidth = 2; // 内圈亮粉色
+      ctx.beginPath(); ctx.arc(40, 40, 15, 0, Math.PI*2); ctx.stroke();
+      tex.refresh();
+    }
+  }
+  genFallDownTextures() {
+    const drawNeonPlat = (key, color, isGlitch = false, hasSpikes = false) => {
+      const tex = this.textures.createCanvas(key, 100, 20);
+      const ctx = tex.getContext();
+      // 黑暗模式下依然清晰的边缘发光
+      ctx.shadowBlur = 10; ctx.shadowColor = color;
+      ctx.strokeStyle = color; ctx.lineWidth = 3;
+      ctx.strokeRect(2, 2, 96, 16);
+      
+      // 内部半透明填充
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.3;
+      ctx.fillRect(2, 2, 96, 16);
+      ctx.globalAlpha = 1.0;
+
+      if (hasSpikes) { // 伤害平台：红色的尖刺
+        ctx.fillStyle = '#ff0000';
+        for(let i=5; i<95; i+=15) {
+          ctx.beginPath(); ctx.moveTo(i, 2); ctx.lineTo(i+5, -8); ctx.lineTo(i+10, 2); ctx.fill();
+        }
+      }
+      if (isGlitch) { // 薛定谔平台：随机杂色噪点
+        ctx.fillStyle = '#ffffff';
+        for(let i=0; i<20; i++) ctx.fillRect(Math.random()*100, Math.random()*20, 2, 2);
+      }
+      tex.refresh();
+    };
+
+    // 1. 正常 (霓虹青色)
+    drawNeonPlat('plat-normal', '#00f0ff');
+    // 2. 易碎 (警示橙黄)
+    drawNeonPlat('plat-fragile', '#ffaa00');
+    // 3. 伤害 (腥红尖刺)
+    drawNeonPlat('plat-damage', '#ff1744', false, true);
+    // 4. 音轨律动 (迷幻洋红)
+    drawNeonPlat('plat-audio', '#ff00e6');
+    // 5. 薛定谔故障 (不稳定紫白)
+    drawNeonPlat('plat-glitch', '#b845ff', true);
+
+    // 6. 重力反转充能球 (闪耀的绿色核心)
+    {
+      const tex = this.textures.createCanvas('grav-orb', 24, 24);
+      const ctx = tex.getContext();
+      ctx.shadowBlur = 15; ctx.shadowColor = '#39ff14';
+      ctx.fillStyle = '#39ff14';
+      ctx.beginPath(); ctx.arc(12, 12, 6, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(12, 12, 10, 0, Math.PI*2); ctx.stroke();
+      tex.refresh();
+    }
   }
 
   create() {
