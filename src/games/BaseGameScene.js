@@ -155,9 +155,17 @@ export class BaseGameScene extends Phaser.Scene {
   }
 
   get controlInverted() {
+    return this.glitch ? this.glitch.controlInverted : false;
+  }
+
+  get horizontalControlInverted() {
     const glitchInvert = this.glitch ? this.glitch.controlInverted : false;
     const mirrorInvert = !!GameManager.mutationSystem?.isMirrored;
     return glitchInvert !== mirrorInvert;
+  }
+
+  get verticalControlInverted() {
+    return this.glitch ? this.glitch.controlInverted : false;
   }
 
   get enemiesFrozen() {

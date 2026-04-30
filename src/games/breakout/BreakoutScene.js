@@ -70,8 +70,8 @@ export class BreakoutScene extends BaseGameScene {
     this.setupCollisions();
 
     this.input.on('pointermove', (pointer) => {
-      const inv = this.controlInverted;
-      const px = inv ? GAME_WIDTH - pointer.x : pointer.x;
+      const invX = this.horizontalControlInverted;
+      const px = invX ? GAME_WIDTH - pointer.x : pointer.x;
       const half = this.paddle.displayWidth / 2;
       this.paddle.x = Phaser.Math.Clamp(px, half, GAME_WIDTH - half);
       if (this.ballOnPaddle) {
@@ -516,15 +516,15 @@ export class BreakoutScene extends BaseGameScene {
     }
 
     const dt = delta / 1000;
-    const inv = this.controlInverted;
+    const invX = this.horizontalControlInverted;
     const leftDown = this.cursors.left.isDown || this.keyA.isDown;
     const rightDown = this.cursors.right.isDown || this.keyD.isDown;
     const paddleSpeed = this.keyShift.isDown ? PADDLE_SPEED * PADDLE_SLOW_FACTOR : PADDLE_SPEED;
     const half = this.paddle.displayWidth / 2;
 
-    if (inv ? rightDown : leftDown) {
+    if (invX ? rightDown : leftDown) {
       this.paddle.x -= paddleSpeed * dt;
-    } else if (inv ? leftDown : rightDown) {
+    } else if (invX ? leftDown : rightDown) {
       this.paddle.x += paddleSpeed * dt;
     }
     this.paddle.x = Phaser.Math.Clamp(this.paddle.x, half, GAME_WIDTH - half);

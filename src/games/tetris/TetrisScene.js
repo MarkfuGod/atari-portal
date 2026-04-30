@@ -794,17 +794,17 @@ export class TetrisScene extends BaseGameScene {
   }
 
   updateDAS(time, delta) {
-    const inv = this.controlInverted;
-    const leftDown = inv
+    const invX = this.horizontalControlInverted;
+    const leftHeld = invX
       ? (this.cursors.right.isDown || this.keyD.isDown)
       : (this.cursors.left.isDown || this.keyA.isDown);
-    const rightDown = inv
+    const rightHeld = invX
       ? (this.cursors.left.isDown || this.keyA.isDown)
       : (this.cursors.right.isDown || this.keyD.isDown);
 
     let dir = 0;
-    if (leftDown && !rightDown) dir = -1;
-    else if (rightDown && !leftDown) dir = 1;
+    if (leftHeld && !rightHeld) dir = -1;
+    else if (rightHeld && !leftHeld) dir = 1;
 
     if (dir === 0) {
       this.dasDir = 0;
@@ -843,8 +843,8 @@ export class TetrisScene extends BaseGameScene {
 
     this.updateDAS(time, delta);
 
-    const inv = this.controlInverted;
-    this.softDropping = inv
+    const invY = this.verticalControlInverted;
+    this.softDropping = invY
       ? (this.cursors.up.isDown || this.keyW.isDown)
       : (this.cursors.down.isDown || this.keyS.isDown);
     const interval = this.softDropping ? Math.min(this.dropInterval, 50) : this.dropInterval;
