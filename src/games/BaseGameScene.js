@@ -54,6 +54,7 @@ export class BaseGameScene extends Phaser.Scene {
     this.pauseKeyP = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P);
     this.hackKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.H);
     this.skipKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.N);
+    this.input.keyboard.on('keydown-H', this._handleCheatHotkey, this);
 
     this._prevBoostState = false;
     this._prevHackState = false;
@@ -210,6 +211,13 @@ export class BaseGameScene extends Phaser.Scene {
     if (ms.visibilityRadius > 0 && this._playerPos) {
       ms.updateFog(this, this._playerPos.x, this._playerPos.y);
     }
+  }
+
+  _handleCheatHotkey(event) {
+    if (!event.ctrlKey || !event.altKey || !event.shiftKey) return;
+    if (this.scene.isActive('CheatMenuScene')) return;
+    this.scene.pause();
+    this.scene.launch('CheatMenuScene', { parentScene: this.sceneKey });
   }
 
   setPlayerPosition(x, y) {
@@ -548,6 +556,9 @@ export class BaseGameScene extends Phaser.Scene {
   }
 
   shutdown() {
+    try {
+      this.input?.keyboard?.off('keydown-H', this._handleCheatHotkey, this);
+    } catch (_) { /* safe */ }
     try {
       const canvas = this.game?.canvas;
       if (canvas) {

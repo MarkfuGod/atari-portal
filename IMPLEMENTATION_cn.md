@@ -131,6 +131,18 @@ Atari Portal 是一个基于 Phaser 3 的霓虹复古小游戏合集。它不是
 
 项目里已经有成就系统，并通过 `localStorage` 持久化。定义位于 `src/core/AchievementSystem.js`。
 
+### 9. Debug / Cheat Menu
+
+当前项目还实现了一个用于测试和调试的运行时菜单 `CheatMenuScene`：
+
+- 只能在主游戏场景中通过 `Ctrl + Alt + Shift + H` 打开
+- 打开后会暂停当前场景，并显示一个覆盖式调试面板
+- 可强制指定下一关、下一次变异、下一次 Mod 选项
+- 可直接修改当前 run 的金币、生命、分数、难度、Hack 充能、Portal Token 等数值
+- 修改通过 `GameManager` 回写，同时刷新 HUD，并将当前 run 状态持久化保存
+
+实现位置：`src/ui/CheatMenuScene.js`、`src/core/GameManager.js`、`src/games/BaseGameScene.js`
+
 ## 各小游戏的附加机制
 
 - `PacmanScene`：鬼魂脆弱状态、传送豆、赛博迷宫 UI
@@ -150,6 +162,7 @@ Atari Portal 是一个基于 Phaser 3 的霓虹复古小游戏合集。它不是
 - `方向键` / `WASD`：移动
 - `Space`：主要动作、发射、发球或硬降，视场景而定
 - `H`：Hack 满能量后激活
+- `Ctrl + Alt + Shift + H`：在游戏中打开 Debug / Cheat Menu
 - `ESC` 或 `P`：暂停
 - `N`：跳过到下一个游戏
 - 鼠标：菜单交互，部分场景用于移动/发球
@@ -223,6 +236,7 @@ src/
     MenuScene.js          主菜单、选关、永久升级商店
     HUDScene.js           通用 HUD
     PauseScene.js         暂停菜单
+    CheatMenuScene.js     运行时调试控制台，可强制下一阶段结果并修改 run 状态
     ModSelectScene.js     关卡间 Mod 选择
     TransitionScene.js    过场场景
     GameOverScene.js      失败结算

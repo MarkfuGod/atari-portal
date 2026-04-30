@@ -63,15 +63,21 @@ export class MutationSystem {
 
   rollMutation() {
     const mutation = MUTATIONS[Math.floor(Math.random() * MUTATIONS.length)];
-    this.activeMutation = mutation;
-    this.mutationState = {};
-    mutation.apply(this.mutationState);
-    return mutation;
+    return this.setMutationById(mutation.id);
   }
 
   clearMutation() {
     this.activeMutation = null;
     this.mutationState = {};
+  }
+
+  setMutationById(id) {
+    const mutation = MUTATIONS.find(m => m.id === id);
+    if (!mutation) return null;
+    this.activeMutation = mutation;
+    this.mutationState = {};
+    mutation.apply(this.mutationState);
+    return mutation;
   }
 
   get speedMultiplier() {
