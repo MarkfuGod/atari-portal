@@ -188,9 +188,7 @@ export class TetrisScene extends BaseGameScene {
     this.dropTimer = 0;
 
     if (!this.isValid(this.currentPieceX, this.currentPieceY, shape)) {
-      this.gameOver = true;
-      this.lockPiece();
-      this.onPlayerDeath();
+      this.handleTopOut();
       return;
     }
 
@@ -380,6 +378,32 @@ export class TetrisScene extends BaseGameScene {
       }
     }
     this.renderBoard();
+  }
+
+  deleteBottomRows(count) {
+    for (let i = 0; i < count; i++) {
+      this.board.pop();
+      this.boardColors.pop();
+      this.board.unshift(new Array(COLS).fill(0));
+      this.boardColors.unshift(new Array(COLS).fill(0));
+    }
+    this.renderBoard();
+  }
+
+  handleTopOut() {
+    const alive = this.onPlayerDeath();
+    if (!alive) {
+      this.gameOver = true;
+      return;
+    }
+
+    this._showClearCallout('STACK OVERLOAD', COLORS.NEON_RED, GAME_WIDTH / 2, BOARD_Y + 48, 20);
+    this._spawnBoardFlash(COLORS.NEON_RED, 0.16, 260);
+    GlitchEffect.digitalNoise(this, 180);
+    this.shakeCamera(0.006, 220);
+    this.deleteBottomRows(6);
+    this.gameOver = false;
+    this.spawnPiece();
   }
 
   flashRows(rows, count, onComplete) {
