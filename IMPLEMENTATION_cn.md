@@ -136,7 +136,7 @@ Atari Portal 是一个基于 Phaser 3 的霓虹复古小游戏合集。它不是
 
 当前项目还实现了一个用于测试和调试的运行时菜单 `CheatMenuScene`：
 
-- 只能在主游戏场景中通过 `Ctrl + Alt + Shift + H` 打开
+- 只能在主游戏场景中通过 `Shift + \` 打开，也就是输入 `|`
 - 打开后会暂停当前场景，并显示一个覆盖式调试面板
 - 可强制指定下一关、下一次变异、下一次 Mod 选项
 - 可直接修改当前 run 的金币、生命、分数、难度、Hack 充能、Portal Token 等数值
@@ -163,7 +163,7 @@ Atari Portal 是一个基于 Phaser 3 的霓虹复古小游戏合集。它不是
 - `方向键` / `WASD`：移动
 - `Space`：主要动作、发射、发球或硬降，视场景而定
 - `H`：Hack 满能量后激活
-- `Ctrl + Alt + Shift + H`：在游戏中打开 Debug / Cheat Menu
+- `Shift + \`：在游戏中打开 Debug / Cheat Menu
 - `ESC` 或 `P`：暂停
 - `N`：跳过到下一个游戏
 - 鼠标：菜单交互，部分场景用于移动/发球

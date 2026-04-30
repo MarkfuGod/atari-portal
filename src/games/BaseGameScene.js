@@ -54,7 +54,7 @@ export class BaseGameScene extends Phaser.Scene {
     this.pauseKeyP = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P);
     this.hackKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.H);
     this.skipKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.N);
-    this.input.keyboard.on('keydown-H', this._handleCheatHotkey, this);
+    this.cheatKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.BACK_SLASH);
 
     this._prevBoostState = false;
     this._prevHackState = false;
@@ -179,6 +179,10 @@ export class BaseGameScene extends Phaser.Scene {
       this.skipToNextGame();
     }
 
+    if (Phaser.Input.Keyboard.JustDown(this.cheatKey) && this.cheatKey.shiftKey) {
+      this._handleCheatHotkey();
+    }
+
     if (this.portal) this.portal.update(time, delta);
     if (this.glitch) this.glitch.update(delta);
     if (this.powerUps) this.powerUps.update(delta);
@@ -213,8 +217,7 @@ export class BaseGameScene extends Phaser.Scene {
     }
   }
 
-  _handleCheatHotkey(event) {
-    if (!event.ctrlKey || !event.altKey || !event.shiftKey) return;
+  _handleCheatHotkey() {
     if (this.scene.isActive('CheatMenuScene')) return;
     this.scene.pause();
     this.scene.launch('CheatMenuScene', { parentScene: this.sceneKey });
@@ -556,9 +559,6 @@ export class BaseGameScene extends Phaser.Scene {
   }
 
   shutdown() {
-    try {
-      this.input?.keyboard?.off('keydown-H', this._handleCheatHotkey, this);
-    } catch (_) { /* safe */ }
     try {
       const canvas = this.game?.canvas;
       if (canvas) {

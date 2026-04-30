@@ -133,7 +133,7 @@ An achievement registry exists and persists unlocks through `localStorage`. Defi
 
 A dedicated runtime debug menu exists as `CheatMenuScene` for gameplay-side testing and state injection:
 
-- Available from gameplay scenes through `Ctrl + Alt + Shift + H`
+- Available from gameplay scenes through `Shift + \` (typing `|`)
 - Pauses the current gameplay scene and opens an overlay console
 - Can force the next scene, next mutation, and next mod offer
 - Can directly edit current run values such as coins, lives, score, difficulty, hack charge, and portal tokens
@@ -160,7 +160,7 @@ Global controls:
 - `Arrow Keys` / `WASD`: move
 - `Space`: main action, launch, fire, or hard drop depending on scene
 - `H`: activate hack when charged
-- `Ctrl + Alt + Shift + H`: open the debug / cheat menu during gameplay
+- `Shift + \`: open the debug / cheat menu during gameplay
 - `ESC` or `P`: pause
 - `N`: skip to the next game
 - Mouse: menu navigation, some aiming/launch interactions
