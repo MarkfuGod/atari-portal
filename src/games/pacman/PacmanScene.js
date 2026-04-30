@@ -363,9 +363,6 @@ export class PacmanScene extends BaseGameScene {
 
     if (newDir) {
       this.pacman.nextDirection = newDir;
-      this.pacman.wantsToMove = true;
-    } else {
-      this.pacman.wantsToMove = false;
     }
   }
 
@@ -382,7 +379,7 @@ export class PacmanScene extends BaseGameScene {
         dirChanged = true;
       }
 
-      if ((pac.wantsToMove || dirChanged) && this.canMove(pac.gridCol, pac.gridRow, pac.direction)) {
+      if ((dirChanged || this.canMove(pac.gridCol, pac.gridRow, pac.direction)) && this.canMove(pac.gridCol, pac.gridRow, pac.direction)) {
         const nc = pac.gridCol + pac.direction.x;
         const nr = pac.gridRow + pac.direction.y;
         const target = cellToWorld(nc, nr);
