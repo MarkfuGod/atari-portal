@@ -155,7 +155,9 @@ export class BaseGameScene extends Phaser.Scene {
   }
 
   get controlInverted() {
-    return this.glitch ? this.glitch.controlInverted : false;
+    const glitchInvert = this.glitch ? this.glitch.controlInverted : false;
+    const mirrorInvert = !!GameManager.mutationSystem?.isMirrored;
+    return glitchInvert !== mirrorInvert;
   }
 
   get enemiesFrozen() {
@@ -253,11 +255,13 @@ export class BaseGameScene extends Phaser.Scene {
     const canvas = this.game?.canvas;
     if (!canvas) return;
     const depth = (Math.abs(fx) + Math.abs(fy)) * 18;
+    const mirrorScale = this._mutMirror ? -1 : 1;
     canvas.style.transformOrigin = '50% 50%';
     canvas.style.transformStyle = 'preserve-3d';
     canvas.style.willChange = 'transform';
     canvas.style.transform = [
       'perspective(900px)',
+      `scaleX(${mirrorScale})`,
       `rotateX(${(-fy * 8).toFixed(3)}deg)`,
       `rotateY(${(fx * 10).toFixed(3)}deg)`,
       `translateZ(${depth.toFixed(2)}px)`,
