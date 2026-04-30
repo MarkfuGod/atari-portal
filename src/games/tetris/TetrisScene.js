@@ -136,7 +136,7 @@ export class TetrisScene extends BaseGameScene {
     this.input.keyboard.on('keydown-SPACE', () => this.hardDrop());
 
     this.events.on('powerup-collected', (def) => {
-      if (def.id === 'clear_rows') this.clearBottomRows(2);
+      if (def.id === 'clear_rows') this.deleteBottomRows(2);
     });
   }
 
@@ -354,30 +354,20 @@ export class TetrisScene extends BaseGameScene {
       this._showClearCallout('DOUBLE', COLORS.NEON_CYAN, centerX, centerY - 12, 20);
     }
 
-    this.flashRows(fullRows, count, () => {
-      for (const row of fullRows.sort((a, b) => b - a)) {
-        this.board.splice(row, 1);
-        this.boardColors.splice(row, 1);
-        this.board.unshift(new Array(COLS).fill(0));
-        this.boardColors.unshift(new Array(COLS).fill(0));
-      }
-      this.renderBoard();
-
-      if (!this.portalTriggered) {
-        this.checkPortalCondition(count, fullRows);
-      }
-    });
-  }
-
-  clearBottomRows(count) {
-    for (let i = 0; i < count; i++) {
-      const row = ROWS - 1 - i;
-      if (row >= 0) {
-        this.board[row] = new Array(COLS).fill(0);
-        this.boardColors[row] = new Array(COLS).fill(0);
-      }
+    for (const row of fullRows.sort((a, b) => b - a)) {
+      this.board.splice(row, 1);
+      this.boardColors.splice(row, 1);
+      this.board.unshift(new Array(COLS).fill(0));
+      this.boardColors.unshift(new Array(COLS).fill(0));
     }
+
     this.renderBoard();
+
+    if (!this.portalTriggered) {
+      this.checkPortalCondition(count, fullRows);
+    }
+
+    this.flashRows(fullRows, count);
   }
 
   deleteBottomRows(count) {
@@ -406,7 +396,7 @@ export class TetrisScene extends BaseGameScene {
     this.spawnPiece();
   }
 
-  flashRows(rows, count, onComplete) {
+  flashRows(rows, count, onComplete = null) {
     const flashBlocks = [];
     const flashBars = [];
     const tierColors = [COLORS.NEON_CYAN, COLORS.NEON_GREEN, COLORS.NEON_ORANGE, COLORS.NEON_MAGENTA];
@@ -453,7 +443,9 @@ export class TetrisScene extends BaseGameScene {
           });
         }
         flashBlocks.forEach(b => b.destroy());
-        this.time.delayedCall(200, () => onComplete());
+        if (onComplete) {
+          this.time.delayedCall(200, () => onComplete());
+        }
       },
     });
 
