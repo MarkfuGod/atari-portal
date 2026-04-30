@@ -788,7 +788,7 @@ export class MenuScene extends Phaser.Scene {
   startDebugGame(sceneKey, index) {
     SFX.menuStart();
     GameManager.reset();
-    GameManager.state.mode = 'arcade';
+    GameManager.state.mode = 'story';
     GameManager.state.currentGameIndex = index;
     GameManager.state.coins = 10;
     this.cameras.main.fadeOut(400, 10, 10, 26);
@@ -803,6 +803,11 @@ export class MenuScene extends Phaser.Scene {
     SFX.menuStart();
     GameManager.reset();
     GameManager.state.mode = mode;
+    if (mode === 'arcade') {
+      GameManager.state.currentGameIndex = Phaser.Math.Between(0, GAME_ORDER.length - 1);
+    } else {
+      GameManager.state.currentGameIndex = 0;
+    }
     this.cameras.main.fadeOut(400, 10, 10, 26);
     this.time.delayedCall(400, () => {
       this.scene.launch('HUDScene');
