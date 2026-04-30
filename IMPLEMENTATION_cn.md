@@ -17,15 +17,15 @@ Atari Portal 是一个基于 Phaser 3 的霓虹复古小游戏合集。它不是
 
 | 场景 | 展示名称 | 核心玩法 | 传送门触发方式 |
 |------|------|------|------|
-| `PacmanScene` | PAC-MAN / CYBER-SNACKER | 吃豆、躲鬼、吃能量豆 | 清掉 60% 豆子后出现传送豆 |
-| `BreakoutScene` | BREAKOUT / DATA WALL BREAKER | 打砖块 | 破坏一定数量砖块后会生成传送砖 |
-| `SpaceInvadersScene` | SPACE INVADERS / CYBER SWARM | 清理敌阵、躲炸弹 | 击杀足够多敌人后可能出现传送母舰 |
-| `FroggerScene` | FROGGER / FIREWALL RUNNER | 过车流、踩浮木、占点 | 填满 3 个荷叶点后出现传送荷叶 |
-| `AsteroidsScene` | ASTEROIDS / DATA FRAGMENT PURGE | 飞船射击、碎裂小行星 | 击毁数量达标后生成传送陨石 |
-| `TetrisScene` | TETRIS / CORE RECONSTRUCTION | 堆叠消行 | 消行进度达标后打开裂隙 |
-| `SnakeGame` | SNAKE / VIRAL TRACE | 贪吃蛇成长并处理音波危险 | 长度达到 10 |
+| `PacmanScene` | PAC-MAN / CYBER-SNACKER | 吃豆、躲鬼、吃能量豆 | 清掉 60% 豆子后会生成传送豆，吃到该传送豆后才真正打开传送门 |
+| `BreakoutScene` | BREAKOUT / DATA WALL BREAKER | 打砖块 | 破坏 40% 砖块后，场上随机一块现存砖会变成传送砖；打掉它后才打开传送门 |
+| `SpaceInvadersScene` | SPACE INVADERS / CYBER SWARM | 清理敌阵、躲炸弹 | 敌人数降到初始数量的 30% 时，会安排一艘传送母舰；击毁它后才打开传送门 |
+| `FroggerScene` | FROGGER / FIREWALL RUNNER | 过车流、踩浮木、占点 | 先填满 3 个普通荷叶点，随后剩余荷叶中会有一个变成传送荷叶；跳上去后才打开传送门 |
+| `AsteroidsScene` | ASTEROIDS / DATA FRAGMENT PURGE | 飞船射击、碎裂小行星 | 击毁 12 个小行星目标后会生成传送陨石；击毁该陨石后才打开传送门 |
+| `TetrisScene` | TETRIS / CORE RECONSTRUCTION | 堆叠消行 | 总消行达到 8 且本次是一次 4 连消，或总消行累计达到 15 时，直接打开裂隙传送门 |
+| `SnakeGame` | SNAKE / VIRAL TRACE | 贪吃蛇成长并处理音波危险 | 蛇长度达到 10 时，屏幕中央直接生成传送门 |
 | `PinballScene` | PINBALL / WORMHOLE TABLE | 弹珠台、多球、Boss | 击败 Boss 核心 |
-| `FallDownScene` | CYBER-SHAFT / FALLDOWN | 下坠生存、平台机制 | 速度提升到阈值后生成传送门 |
+| `FallDownScene` | CYBER-SHAFT / FALLDOWN | 下坠生存、平台机制 | 下坠流速提升到 `-450` 后，屏幕中央直接生成传送门 |
 
 `src/config.js` 中当前配置的固定顺序为：
 
@@ -66,6 +66,7 @@ Atari Portal 是一个基于 Phaser 3 的霓虹复古小游戏合集。它不是
 - 每个游戏场景都挂载同一个 `PortalSystem`
 - 传送门有出现、警告、过期、重生等完整生命周期
 - 如果长时间没有达成该场景的专属条件，系统会触发保底传送门
+- 各场景的具体触发逻辑并不完全对称：有些是达标后直接开门，有些则是先生成“传送目标物”，还需要玩家再去吃到、打掉或碰到它，才会真正生成传送门
 
 实现位置：`src/core/PortalSystem.js`
 
@@ -145,15 +146,15 @@ Atari Portal 是一个基于 Phaser 3 的霓虹复古小游戏合集。它不是
 
 ## 各小游戏的附加机制
 
-- `PacmanScene`：鬼魂脆弱状态、传送豆、赛博迷宫 UI
-- `BreakoutScene`：瞄准发球、传送砖、砖场边框特效
-- `SpaceInvadersScene`：护盾、母舰逻辑、炸弹波次、扩散/双发兼容
-- `FroggerScene`：浮木搭载、荷叶占点、数据流与车流双区域
-- `AsteroidsScene`：波次刷新、UFO 事件、小行星裂变、传送陨石
-- `TetrisScene`：DAS、预览框、消行能力、裂隙生成逻辑
-- `SnakeGame`：残骸回收、病毒/补丁食物、音频驱动声波攻击
+- `PacmanScene`：鬼魂脆弱状态、赛博迷宫 UI、60% 进度后生成且必须吃掉的传送豆
+- `BreakoutScene`：瞄准发球、砖场边框特效、40% 进度后刷出的传送砖
+- `SpaceInvadersScene`：护盾、母舰逻辑、炸弹波次、扩散/双发兼容、按剩余敌人数触发的传送母舰
+- `FroggerScene`：浮木搭载、荷叶占点、数据流与车流双区域、填满 3 个点后解锁的传送荷叶
+- `AsteroidsScene`：波次刷新、UFO 事件、小行星裂变、击毁数达标后刷出的传送陨石
+- `TetrisScene`：DAS、预览框、消行能力、由高门槛消行条件触发的裂隙传送门
+- `SnakeGame`：残骸回收、病毒/补丁食物、音频驱动声波攻击、长度达标后直接出现的中心传送门
 - `PinballScene`：4 个拨杆、多球目标、虫洞、移动 Boss
-- `FallDownScene`：多种平台属性、生命球、本地 HP 与全局命数叠加
+- `FallDownScene`：多种平台属性、生命球、本地 HP 与全局命数叠加，以及速度阈值触发的直接传送门
 
 ## 操作
 

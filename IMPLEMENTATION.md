@@ -16,15 +16,15 @@ This repository contains 9 playable scenes, runtime-generated textures, bundled 
 
 | Scene | Display Name | Core Goal | Portal Condition |
 |------|------|------|------|
-| `PacmanScene` | PAC-MAN / CYBER-SNACKER | Eat dots, dodge ghosts, use power pellets | Portal pellet appears after 60% of dots are cleared |
-| `BreakoutScene` | BREAKOUT / DATA WALL BREAKER | Break bricks with paddle and ball | A portal brick is promoted once enough bricks are destroyed |
-| `SpaceInvadersScene` | SPACE INVADERS / CYBER SWARM | Clear invading formations and survive bomb waves | A portal mothership can spawn after enough invaders are removed |
-| `FroggerScene` | FROGGER / FIREWALL RUNNER | Cross traffic and data streams to fill home pads | Fill 3 lily pads to turn one into a portal pad |
-| `AsteroidsScene` | ASTEROIDS / DATA FRAGMENT PURGE | Fly, split asteroids, and clear waves | A portal asteroid appears after enough kills |
-| `TetrisScene` | TETRIS / CORE RECONSTRUCTION | Stack pieces, clear lines, survive faster drop pace | A rift opens after sufficient line-clear progress |
-| `SnakeGame` | SNAKE / VIRAL TRACE | Grow the snake while handling sonic-wave hazards | Reach length 10 |
+| `PacmanScene` | PAC-MAN / CYBER-SNACKER | Eat dots, dodge ghosts, use power pellets | After 60% dot clear, a portal pellet spawns; eating that pellet opens the portal at its tile |
+| `BreakoutScene` | BREAKOUT / DATA WALL BREAKER | Break bricks with paddle and ball | After 40% brick clear, one live brick becomes a portal brick; breaking it opens the portal at that brick |
+| `SpaceInvadersScene` | SPACE INVADERS / CYBER SWARM | Clear invading formations and survive bomb waves | When invaders drop to 30% remaining, a portal mothership is queued; shooting it opens the portal |
+| `FroggerScene` | FROGGER / FIREWALL RUNNER | Cross traffic and data streams to fill home pads | After 3 normal home pads are filled, one remaining pad becomes a portal pad; hopping onto it opens the portal |
+| `AsteroidsScene` | ASTEROIDS / DATA FRAGMENT PURGE | Fly, split asteroids, and clear waves | After 12 asteroid kills, a portal asteroid spawns; destroying it opens the portal |
+| `TetrisScene` | TETRIS / CORE RECONSTRUCTION | Stack pieces, clear lines, survive faster drop pace | Portal opens on a 4-line clear after 8+ total lines, or automatically at 15 total lines cleared |
+| `SnakeGame` | SNAKE / VIRAL TRACE | Grow the snake while handling sonic-wave hazards | Portal opens immediately at screen center once snake length reaches 10 |
 | `PinballScene` | PINBALL / WORMHOLE TABLE | Keep balls alive, hit targets, beat the moving boss | Defeat the boss core |
-| `FallDownScene` | CYBER-SHAFT / FALLDOWN | Descend through moving platforms and survive hazard types | Reach the high-speed threshold |
+| `FallDownScene` | CYBER-SHAFT / FALLDOWN | Descend through moving platforms and survive hazard types | Portal opens at center once downward stream speed reaches `-450` |
 
 `src/config.js` defines the active portal order:
 
@@ -65,6 +65,7 @@ Across a run, the following systems persist:
 - Every scene owns a `PortalSystem`
 - Portals animate in, expire if ignored, and can respawn through a fallback timer
 - If a scene-specific trigger is not met in time, a forced portal spawn can occur automatically
+- Actual scene triggers are intentionally uneven: some scenes open a portal directly, while others first spawn an intermediate portal object that must be collected, destroyed, or touched before the portal appears
 
 ### Mutations
 
@@ -142,15 +143,15 @@ Implementation: `src/ui/CheatMenuScene.js`, `src/core/GameManager.js`, `src/game
 
 ## Per-Scene Extra Systems
 
-- `PacmanScene`: ghosts, vulnerable windows, portal pellet, procedural maze UI
-- `BreakoutScene`: paddle aim control, portal brick, brick field border VFX
-- `SpaceInvadersScene`: shields, mothership logic, bomb waves, spread/double-shot interactions
-- `FroggerScene`: log riding, lily pad completion, traffic/data-lane theming
-- `AsteroidsScene`: wave spawning, UFO events, asteroid splitting, portal asteroid
-- `TetrisScene`: DAS handling, preview box, line-clear powers, portal rift logic
-- `SnakeGame`: residue recovery, virus/patch food types, audio-triggered sonic waves
+- `PacmanScene`: ghosts, vulnerable windows, procedural maze UI, 60%-progress portal pellet that must be eaten to open the portal
+- `BreakoutScene`: paddle aim control, brick field border VFX, 40%-progress portal brick that must be broken by the ball
+- `SpaceInvadersScene`: shields, mothership logic, bomb waves, spread/double-shot interactions, portal mothership gated by remaining-invader count
+- `FroggerScene`: log riding, lily pad completion, traffic/data-lane theming, portal lily pad unlocked after filling 3 normal pads
+- `AsteroidsScene`: wave spawning, UFO events, asteroid splitting, portal asteroid unlocked after 12 asteroid kills
+- `TetrisScene`: DAS handling, preview box, line-clear powers, portal rift logic keyed to either a late Tetris or 15 total lines
+- `SnakeGame`: residue recovery, virus/patch food types, audio-triggered sonic waves, immediate center portal at length 10
 - `PinballScene`: 4 flippers, multiball targets, wormholes, moving boss
-- `FallDownScene`: multiple platform behaviors, orb pickups, local HP loop layered on top of run lives
+- `FallDownScene`: multiple platform behaviors, orb pickups, local HP loop layered on top of run lives, direct portal spawn at the `-450` speed threshold
 
 ## Controls
 
