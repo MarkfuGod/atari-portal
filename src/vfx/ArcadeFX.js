@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS } from '../config.js';
 import NeonGlow from './NeonGlow.js';
-import { isModernistStyle, getVisualStyle } from '../core/VisualStyle.js';
+import { isModernistStyle, getVisualStyle, getFonts } from '../core/VisualStyle.js';
 
 const ArcadeFX = {
   flash(scene, x, y, {
@@ -135,9 +135,10 @@ const ArcadeFX = {
       ? '#' + p.ink.toString(16).padStart(6, '0')
       : '#ffffff';
 
+    const f = getFonts();
     const label = scene.add.text(x, y, text, {
       fontSize,
-      fontFamily: 'monospace',
+      fontFamily: modernist ? f.ui : f.mono,
       color: labelColor,
     }).setOrigin(0.5).setDepth(depth).setAlpha(0);
 

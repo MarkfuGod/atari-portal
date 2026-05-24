@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config.js';
-import { getVisualStyle, cssColor, isModernistStyle } from '../core/VisualStyle.js';
+import { getVisualStyle, cssColor, isModernistStyle, getFonts } from '../core/VisualStyle.js';
 import CyberSceneFX from './CyberSceneFX.js';
 
 // Modernist twin of CyberSceneFX. Same call signatures, print-native output:
@@ -103,7 +103,7 @@ const PosterSceneFX = {
       g.lineBetween(leftX + 14 - tickLen, y, leftX + 14, y);
 
       const txt = scene.add.text(leftX, y - 5, String(n * 200).padStart(4, '0'), {
-        fontSize: '8px', fontFamily: 'monospace',
+        fontSize: '8px', fontFamily: getFonts().mono,
         color: cssColor(p.ink),
       }).setDepth(depth + 1).setAlpha(leftAlpha);
       items.push(txt);
@@ -114,7 +114,7 @@ const PosterSceneFX = {
     let ry = top + 14;
     for (const row of rows) {
       const txt = scene.add.text(rightX, ry, row, {
-        fontSize: '9px', fontFamily: 'monospace',
+        fontSize: '9px', fontFamily: getFonts().mono,
         color: cssColor(p.muted),
       }).setOrigin(1, 0).setDepth(depth + 1).setAlpha(rightAlpha);
       items.push(txt);
@@ -155,16 +155,17 @@ const PosterSceneFX = {
     g.lineBetween(0, barBottom, GAME_WIDTH, barBottom);
     g.lineBetween(0, barTop + 24, GAME_WIDTH, barTop + 24);
 
+    const f = getFonts();
     const titleText = scene.add.text(14, barBottom + 6, title, {
       fontSize: '15px',
-      fontFamily: 'monospace',
+      fontFamily: f.ui,
       color: cssColor(p.ink),
     }).setDepth(depth + 1);
 
     const subText = subtitle
       ? scene.add.text(GAME_WIDTH - 14, barBottom + 9, subtitle, {
         fontSize: '10px',
-        fontFamily: 'monospace',
+        fontFamily: f.mono,
         color: cssColor(p.muted),
       }).setOrigin(1, 0).setDepth(depth + 1)
       : null;
@@ -202,7 +203,7 @@ const PosterSceneFX = {
     c.add(g);
     if (label) {
       const t = scene.add.text(-w / 2 + 12, -h / 2 + 6, label, {
-        fontSize: '10px', fontFamily: 'monospace',
+        fontSize: '10px', fontFamily: getFonts().ui,
         color: cssColor(p.ink),
       });
       c.add(t);
@@ -265,19 +266,20 @@ const PosterSceneFX = {
     const p = style.palette;
     const c = scene.add.container(x, y).setDepth(depth);
 
+    const f = getFonts();
     const t1 = scene.add.text(0, 0, `> ${label}`, {
-      fontSize: '10px', fontFamily: 'monospace',
+      fontSize: '10px', fontFamily: f.mono,
       color: cssColor(p.ink),
     });
     const t2 = scene.add.text(0, 12, coord, {
-      fontSize: '9px', fontFamily: 'monospace',
+      fontSize: '9px', fontFamily: f.mono,
       color: cssColor(p.muted),
     });
     const nodePlate = scene.add.graphics();
     nodePlate.fillStyle(p.vermilion, 1);
     nodePlate.fillRect(86, -2, 22, 16);
     const t3 = scene.add.text(97, 6, node, {
-      fontSize: '10px', fontFamily: 'monospace',
+      fontSize: '10px', fontFamily: f.ui,
       color: cssColor(p.paper),
     }).setOrigin(0.5);
 

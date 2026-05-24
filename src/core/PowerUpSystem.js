@@ -1,6 +1,7 @@
 import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '../config.js';
 import { GameManager } from './GameManager.js';
 import SFX from './SFXManager.js';
+import { getFonts, isModernistStyle } from './VisualStyle.js';
 
 const POWERUP_DEFS = {
   PacmanScene: [
@@ -160,8 +161,10 @@ export class PowerUpSystem {
 
     this.scene.events.emit('powerup-collected', def);
 
+    const fonts = getFonts();
     const label = this.scene.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20, def.name, {
-      fontSize: '16px', fontFamily: 'monospace',
+      fontSize: '18px',
+      fontFamily: isModernistStyle() ? fonts.display : fonts.ui,
       color: '#' + def.color.toString(16).padStart(6, '0'),
     }).setOrigin(0.5).setDepth(300).setAlpha(0);
 

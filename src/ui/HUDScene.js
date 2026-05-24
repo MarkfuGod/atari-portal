@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GAME_WIDTH, COLORS, GAME_NAMES, SPEED_BOOST, HACK_CONFIG, GAME_LORE, GAME_ORDER } from '../config.js';
 import { GameManager } from '../core/GameManager.js';
 import NeonGlow from '../vfx/NeonGlow.js';
-import { getVisualStyle, isModernistStyle } from '../core/VisualStyle.js';
+import { getVisualStyle, isModernistStyle, getFonts } from '../core/VisualStyle.js';
 
 const HUD_H = 32;
 const neonCyan = '#00f0ff';
@@ -24,6 +24,7 @@ export class HUDScene extends Phaser.Scene {
     this.modernist = isModernistStyle();
     const p = this.palette;
     const css = this.visualStyle.css;
+    const f = this.visualStyle.fonts || getFonts();
 
     const g = this.add.graphics().setDepth(999);
     g.fillStyle(this.modernist ? p.terminal : COLORS.HUD_BG, this.modernist ? 0.94 : 0.92);
@@ -45,7 +46,7 @@ export class HUDScene extends Phaser.Scene {
 
     this.scoreText = this.add.text(12, 8, 'SCR:0000000', {
       fontSize: '13px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: this.modernist ? css.green : neonCyan,
     }).setDepth(1000);
     if (!this.modernist) NeonGlow.applyTextGlow(this, this.scoreText, COLORS.NEON_CYAN);
@@ -55,20 +56,20 @@ export class HUDScene extends Phaser.Scene {
 
     this.coinsText = this.add.text(GAME_WIDTH - 135, 8, '', {
       fontSize: '13px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: this.modernist ? css.mustard : '#ffd700',
     }).setOrigin(1, 0).setDepth(1000);
 
     this.gameLabel = this.add.text(GAME_WIDTH / 2, 8, '', {
-      fontSize: '12px',
-      fontFamily: 'monospace',
+      fontSize: '13px',
+      fontFamily: f.ui,
       color: this.modernist ? css.paper : neonPurple,
     }).setOrigin(0.5, 0).setDepth(1000);
     if (!this.modernist) NeonGlow.applyTextGlow(this, this.gameLabel, COLORS.NEON_PURPLE);
 
     this.boostIndicator = this.add.text(160, 8, '', {
       fontSize: '12px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: this.modernist ? css.vermilion : neonOrange,
     }).setDepth(1000);
 
@@ -90,14 +91,14 @@ export class HUDScene extends Phaser.Scene {
     }
 
     this.hackLabel = this.add.text(GAME_WIDTH - 12, HUD_H + 115, 'H', {
-      fontSize: '10px',
-      fontFamily: 'monospace',
+      fontSize: '11px',
+      fontFamily: f.ui,
       color: this.modernist ? css.cyan : neonCyan,
     }).setOrigin(0.5, 0).setDepth(999).setAlpha(0.6);
 
     this.mutationText = this.add.text(GAME_WIDTH / 2, HUD_H + 4, '', {
       fontSize: '10px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: this.modernist ? css.mustard : neonOrange,
     }).setOrigin(0.5, 0).setDepth(998).setAlpha(0);
 
@@ -105,8 +106,8 @@ export class HUDScene extends Phaser.Scene {
     const bpX = 220;
     const bpW = 120;
     this.add.text(bpX - 2, 22, 'BREACH', {
-      fontSize: '7px',
-      fontFamily: 'monospace',
+      fontSize: '8px',
+      fontFamily: f.ui,
       color: this.modernist ? css.cyan : neonCyan,
     }).setDepth(1000).setAlpha(0.5);
     this.breachBarBg = this.add.rectangle(bpX, 19, bpW, 3, this.modernist ? p.faint : COLORS.HUD_BG, 0.6)

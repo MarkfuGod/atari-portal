@@ -69,6 +69,25 @@ const MOD_ROLES = {
   debris:     MOD_PALETTE.ink,
 };
 
+// Typography tokens. Three roles cover every text site in the codebase:
+//   display — big poster headings, scene titles, victory/defeat banners
+//   ui      — HUD labels, callouts, button captions, panel headers
+//   mono    — coordinate stamps, debug rows, terminal/code text, score readouts
+// MODERNIST uses the print-poster trio (Albatross / HS LunaObscura / Monowire);
+// NEON keeps the arcade monospace family but borrows Albatross for big titles
+// since the typeface reads equally well as cyberpunk display.
+const MOD_FONTS = {
+  display: '"Albatross", "HS LunaObscura", "Impact", sans-serif',
+  ui:      '"HS LunaObscura", "Albatross", "Helvetica Neue", sans-serif',
+  mono:    '"Monowire", "Courier New", monospace',
+};
+
+const NEON_FONTS = {
+  display: '"Albatross", "Impact", "Arial Black", sans-serif',
+  ui:      '"HS LunaObscura", "Courier New", monospace',
+  mono:    '"Monowire", "Courier New", monospace',
+};
+
 const NEON_ROLES = {
   player:     NEON_PALETTE.cyan,
   playerAlt:  0xffffff,
@@ -100,6 +119,7 @@ export const VISUAL_STYLES = {
     shortLabel: 'MODERNIST',
     palette: MOD_PALETTE,
     roles: MOD_ROLES,
+    fonts: MOD_FONTS,
     css: {
       paper: '#f2efe6',
       terminal: '#080807',
@@ -120,6 +140,7 @@ export const VISUAL_STYLES = {
     shortLabel: 'NEON',
     palette: NEON_PALETTE,
     roles: NEON_ROLES,
+    fonts: NEON_FONTS,
     css: {
       paper: '#ffffff',
       terminal: '#0a0a1a',
@@ -138,6 +159,10 @@ export const VISUAL_STYLES = {
 
 export function getRoles() {
   return getVisualStyle().roles;
+}
+
+export function getFonts() {
+  return getVisualStyle().fonts;
 }
 
 function normalizeStyleId(styleId) {

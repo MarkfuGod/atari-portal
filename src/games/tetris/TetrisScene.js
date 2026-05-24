@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../../config.js';
+import { cssColor } from '../../core/VisualStyle.js';
 import { GameManager } from '../../core/GameManager.js';
 import { BaseGameScene } from '../BaseGameScene.js';
 import SFX from '../../core/SFXManager.js';
@@ -8,6 +9,7 @@ import NeonGlow from '../../vfx/NeonGlow.js';
 import DebrisSystem from '../../vfx/DebrisSystem.js';
 import ArcadeFX from '../../vfx/ArcadeFX.js';
 import CyberSceneFX from '../../vfx/CyberSceneFX.js';
+import PosterSceneFX from '../../vfx/PosterSceneFX.js';
 
 const COLS = 10;
 const ROWS = 20;
@@ -141,6 +143,10 @@ export class TetrisScene extends BaseGameScene {
   }
 
   drawCyberArena() {
+    if (this.modernist) {
+      this.drawModernistArena();
+      return;
+    }
     CyberSceneFX.drawCircuitBackdrop(this, {
       primary: COLORS.NEON_CYAN,
       secondary: COLORS.NEON_GREEN,
@@ -162,6 +168,71 @@ export class TetrisScene extends BaseGameScene {
       depth: -5,
       tilt: 0.08,
     });
+  }
+
+  drawModernistArena() {
+    const p = this.palette;
+    this.cameras.main.setBackgroundColor(p.paper);
+
+    PosterSceneFX.drawPaperBackdrop(this, {
+      top: 32,
+      bottom: GAME_HEIGHT - 34,
+      depth: -35,
+      seam: false,
+      grid: true,
+      gridStep: 40,
+      grainDensity: 240,
+      seed: 0x7a13,
+    });
+
+    PosterSceneFX.drawAxisStripData(this, {
+      top: 36,
+      bottom: GAME_HEIGHT - 38,
+      depth: -8,
+      leftAlpha: 0.42,
+      rightAlpha: 0.38,
+    });
+
+    PosterSceneFX.drawPosterHudFrame(this, {
+      title: 'TETRIS // CORE RECONSTRUCTION',
+      subtitle: 'NODE 72 · CX4024 · 1984',
+      barTop: 28,
+      barBottom: GAME_HEIGHT - 36,
+    });
+
+    // Side panels: a "STATS" card on the left, "NEXT" card on the right.
+    PosterSceneFX.drawPaperPanel(this, PREVIEW_X + 36, PREVIEW_Y + 160, 128, 96, {
+      accent: p.cyan,
+      depth: -4,
+      label: '> STATS',
+    });
+
+    PosterSceneFX.drawPaperPanel(this, BOARD_X - 90, PREVIEW_Y + 30, 116, 80, {
+      accent: p.mustard,
+      depth: -4,
+      label: '> WAVE',
+    });
+
+    PosterSceneFX.drawCoordinateBlock(this, 24, 56, {
+      label: 'SECTOR 4M',
+      coord: '08.1 N  22.3 E',
+      node: '72',
+      depth: -2,
+    });
+  }
+
+  modPieceColor(type) {
+    const p = this.palette;
+    const map = {
+      I: p.cyan,
+      O: p.mustard,
+      T: p.violet,
+      S: p.green,
+      Z: p.vermilion,
+      J: p.blue,
+      L: p.ink,
+    };
+    return map[type] || p.ink;
   }
 
   get dropInterval() {
@@ -285,7 +356,7 @@ export class TetrisScene extends BaseGameScene {
 
   lockPiece() {
     const shape = this.getShape();
-    const color = PIECE_COLORS[this.currentType];
+    const color = this.modernist ? this.modPieceColor(this.currentType) : PIECE_COLORS[this.currentType];
 
     if (this.portalTriggered && !this.gameOver && this._checkPieceCellsPortal(shape)) return;
 
@@ -397,6 +468,10 @@ export class TetrisScene extends BaseGameScene {
   }
 
   flashRows(rows, count, onComplete = null) {
+    if (this.modernist) {
+      this._flashRowsModernist(rows, count, onComplete);
+      return;
+    }
     const flashBlocks = [];
     const flashBars = [];
     const tierColors = [COLORS.NEON_CYAN, COLORS.NEON_GREEN, COLORS.NEON_ORANGE, COLORS.NEON_MAGENTA];
@@ -470,6 +545,65 @@ export class TetrisScene extends BaseGameScene {
     }
   }
 
+  _flashRowsModernist(rows, count, onComplete = null) {
+    const p = this.palette;
+    // Print line-clear: a single saturated vermilion stripe across each row
+    // for ~80ms per the spec, paired with row-bar glyph hatches.
+    const stripes = [];
+    const hatches = [];
+
+    for (const r of rows) {
+      const cy = BOARD_Y + r * CELL + CELL / 2;
+      const stripe = this.add.rectangle(
+        BOARD_X + BOARD_W / 2,
+        cy,
+        BOARD_W,
+        CELL,
+        p.vermilion,
+        1,
+      ).setDepth(30);
+      stripes.push(stripe);
+
+      const hatch = this.add.graphics().setDepth(31);
+      hatch.lineStyle(1, p.paper, 0.85);
+      for (let i = 0; i < COLS; i++) {
+        const hx = BOARD_X + i * CELL + 4;
+        hatch.lineBetween(hx, cy - CELL / 2 + 4, hx + CELL - 8, cy + CELL / 2 - 4);
+      }
+      hatches.push(hatch);
+    }
+
+    this.tweens.add({
+      targets: stripes,
+      alpha: 0,
+      duration: 220 + count * 60,
+      delay: 80,
+      ease: 'Quad.easeIn',
+      onComplete: () => stripes.forEach(s => s.destroy()),
+    });
+    this.tweens.add({
+      targets: hatches,
+      alpha: 0,
+      duration: 200 + count * 60,
+      delay: 80,
+      onComplete: () => hatches.forEach(h => h.destroy()),
+    });
+
+    // Tetris-tier extras: print misregistration + a stamp callout.
+    if (count >= 4) {
+      GlitchEffect.chromaticAberration(this, 240);
+      this.shakeCamera(0.004, 180);
+      ArcadeFX.callout(this, 'SYSTEM PURGE', BOARD_X + BOARD_W / 2, BOARD_Y - 10, {
+        color: p.vermilion,
+        fontSize: '18px',
+      });
+    } else if (count >= 3) {
+      GlitchEffect.chromaticAberration(this, 160);
+    }
+
+    if (onComplete) this.time.delayedCall(220 + count * 50, () => onComplete());
+  }
+
   checkPortalCondition(clearedCount, rows) {
     const isTetris = clearedCount === 4;
     if ((this.linesCleared >= 8 && isTetris) || this.linesCleared >= 15) {
@@ -503,6 +637,11 @@ export class TetrisScene extends BaseGameScene {
     const g = this.boardGfx;
     g.clear();
 
+    if (this.modernist) {
+      this.drawModernistBoardFrame(g);
+      return;
+    }
+
     const time = this.time ? this.time.now * 0.005 : 0;
     const portalPulse = this.portalTriggered ? (Math.sin(time) * 0.5 + 0.5) : 0;
     const frameColor = this.portalTriggered ? COLORS.NEON_MAGENTA : COLORS.NEON_CYAN;
@@ -524,9 +663,57 @@ export class TetrisScene extends BaseGameScene {
     }
   }
 
+  drawModernistBoardFrame(g) {
+    const p = this.palette;
+    const portal = this.portalTriggered;
+    const frameColor = portal ? p.vermilion : p.ink;
+    const frameWidth = portal ? 2 : 1.5;
+
+    g.fillStyle(p.paper, 1);
+    g.fillRect(BOARD_X, BOARD_Y, BOARD_W, BOARD_H);
+    g.fillStyle(p.ink, 0.04);
+    g.fillRect(BOARD_X, BOARD_Y, BOARD_W, BOARD_H);
+
+    g.lineStyle(1, p.faint, 0.55);
+    for (let c = 1; c < COLS; c++) {
+      g.lineBetween(BOARD_X + c * CELL, BOARD_Y, BOARD_X + c * CELL, BOARD_Y + BOARD_H);
+    }
+    for (let r = 1; r < ROWS; r++) {
+      g.lineBetween(BOARD_X, BOARD_Y + r * CELL, BOARD_X + BOARD_W, BOARD_Y + r * CELL);
+    }
+
+    g.lineStyle(frameWidth, frameColor, 1);
+    g.strokeRect(BOARD_X - 1, BOARD_Y - 1, BOARD_W + 2, BOARD_H + 2);
+
+    g.lineStyle(1, p.ink, 0.55);
+    g.strokeRect(BOARD_X - 5, BOARD_Y - 5, BOARD_W + 10, BOARD_H + 10);
+
+    const tickLen = 6;
+    g.lineStyle(1, p.vermilion, 0.85);
+    g.lineBetween(BOARD_X - 5, BOARD_Y - 5, BOARD_X - 5 + tickLen, BOARD_Y - 5);
+    g.lineBetween(BOARD_X - 5, BOARD_Y - 5, BOARD_X - 5, BOARD_Y - 5 + tickLen);
+    g.lineBetween(BOARD_X + BOARD_W + 5, BOARD_Y - 5, BOARD_X + BOARD_W + 5 - tickLen, BOARD_Y - 5);
+    g.lineBetween(BOARD_X + BOARD_W + 5, BOARD_Y - 5, BOARD_X + BOARD_W + 5, BOARD_Y - 5 + tickLen);
+    g.lineBetween(BOARD_X - 5, BOARD_Y + BOARD_H + 5, BOARD_X - 5 + tickLen, BOARD_Y + BOARD_H + 5);
+    g.lineBetween(BOARD_X - 5, BOARD_Y + BOARD_H + 5, BOARD_X - 5, BOARD_Y + BOARD_H + 5 - tickLen);
+    g.lineBetween(BOARD_X + BOARD_W + 5, BOARD_Y + BOARD_H + 5, BOARD_X + BOARD_W + 5 - tickLen, BOARD_Y + BOARD_H + 5);
+    g.lineBetween(BOARD_X + BOARD_W + 5, BOARD_Y + BOARD_H + 5, BOARD_X + BOARD_W + 5, BOARD_Y + BOARD_H + 5 - tickLen);
+
+    const previewAccent = portal ? p.vermilion : p.cyan;
+    g.lineStyle(1.5, previewAccent, 1);
+    g.strokeRect(PREVIEW_X - 10, PREVIEW_Y - 26, PREVIEW_W, PREVIEW_H);
+    g.lineStyle(1, p.ink, 0.4);
+    g.strokeRect(PREVIEW_X - 13, PREVIEW_Y - 29, PREVIEW_W + 6, PREVIEW_H + 6);
+  }
+
   renderBoard() {
     this.blockImages.forEach(img => img.destroy());
     this.blockImages = [];
+
+    if (this.modernist) {
+      this.renderBoardModernist();
+      return;
+    }
 
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
@@ -578,15 +765,91 @@ export class TetrisScene extends BaseGameScene {
     }
   }
 
+  renderBoardModernist() {
+    const p = this.palette;
+    const inset = 1;
+    const cellSize = CELL - inset * 2;
+
+    // Locked blocks: solid color fill + 1px ink border, no glow.
+    const stack = this.add.graphics().setDepth(10);
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (!this.board[r][c]) continue;
+        const x = BOARD_X + c * CELL + inset;
+        const y = BOARD_Y + r * CELL + inset;
+        const fill = this.boardColors[r][c];
+        stack.fillStyle(fill, 1);
+        stack.fillRect(x, y, cellSize, cellSize);
+        stack.lineStyle(1, p.ink, 1);
+        stack.strokeRect(x + 0.5, y + 0.5, cellSize - 1, cellSize - 1);
+        // Notch corner — small printed-block detail.
+        stack.fillStyle(p.ink, 0.18);
+        stack.fillRect(x + cellSize - 4, y, 4, 4);
+      }
+    }
+    this.blockImages.push(stack);
+
+    if (this.gameOver) return;
+
+    const shape = this.getShape();
+    const color = this.modPieceColor(this.currentType);
+    const gy = this.ghostY();
+
+    // Ghost piece: outline-only frame in muted ink.
+    const ghost = this.add.graphics().setDepth(9);
+    ghost.lineStyle(1, p.ink, 0.42);
+    for (let r = 0; r < shape.length; r++) {
+      for (let c = 0; c < shape[r].length; c++) {
+        if (!shape[r][c]) continue;
+        const ghostRow = gy + r;
+        if (ghostRow < 0) continue;
+        const gx = BOARD_X + (this.currentPieceX + c) * CELL + inset;
+        const gyPx = BOARD_Y + ghostRow * CELL + inset;
+        ghost.strokeRect(gx + 0.5, gyPx + 0.5, cellSize - 1, cellSize - 1);
+        // Diagonal hatch as "phantom" indicator.
+        ghost.lineStyle(1, p.ink, 0.18);
+        ghost.lineBetween(gx + 2, gyPx + cellSize - 2, gx + cellSize - 2, gyPx + 2);
+        ghost.lineStyle(1, p.ink, 0.42);
+      }
+    }
+    this.blockImages.push(ghost);
+
+    // Active piece: solid color + 1px ink border. Soft-drop tightens the border
+    // weight to telegraph the speed-up without resorting to a glow.
+    const active = this.add.graphics().setDepth(13);
+    const borderAlpha = this.softDropping ? 1 : 0.9;
+    for (let r = 0; r < shape.length; r++) {
+      for (let c = 0; c < shape[r].length; c++) {
+        if (!shape[r][c]) continue;
+        const py = this.currentPieceY + r;
+        if (py < 0) continue;
+        const px = BOARD_X + (this.currentPieceX + c) * CELL + inset;
+        const pyPx = BOARD_Y + py * CELL + inset;
+        active.fillStyle(color, 1);
+        active.fillRect(px, pyPx, cellSize, cellSize);
+        active.lineStyle(this.softDropping ? 1.5 : 1, p.ink, borderAlpha);
+        active.strokeRect(px + 0.5, pyPx + 0.5, cellSize - 1, cellSize - 1);
+        active.fillStyle(p.ink, 0.22);
+        active.fillRect(px + cellSize - 4, pyPx, 4, 4);
+      }
+    }
+    this.blockImages.push(active);
+  }
+
   drawPreview() {
     this.previewImages.forEach(img => img.destroy());
     this.previewImages = [];
+
+    if (this.modernist) {
+      this.drawPreviewModernist();
+      return;
+    }
 
     const shape = PIECES[this.nextPiece][0];
     const color = PIECE_COLORS[this.nextPiece];
 
     const label = this.add.text(PREVIEW_X, PREVIEW_Y - 16, 'NEXT', {
-      fontSize: '12px', color: '#00f0ff', fontFamily: 'monospace',
+      fontSize: '13px', color: '#00f0ff', fontFamily: this.fonts.ui,
     }).setDepth(40).setAlpha(0);
     NeonGlow.applyTextGlow(this, label, COLORS.NEON_CYAN);
     this.previewImages.push(label);
@@ -623,6 +886,52 @@ export class TetrisScene extends BaseGameScene {
     });
   }
 
+  drawPreviewModernist() {
+    const p = this.palette;
+    const shape = PIECES[this.nextPiece][0];
+    const color = this.modPieceColor(this.nextPiece);
+
+    // Header + piece-name kicker, like a printed plate.
+    const label = this.add.text(PREVIEW_X - 8, PREVIEW_Y - 22, '> NEXT', {
+      fontSize: '12px', fontFamily: this.fonts.ui, color: cssColor(p.ink),
+    }).setDepth(40).setAlpha(0);
+    NeonGlow.applyTextGlow(this, label, p.ink);
+    this.previewImages.push(label);
+
+    const kicker = this.add.text(PREVIEW_X + PREVIEW_W - 18, PREVIEW_Y - 22, this.nextPiece, {
+      fontSize: '13px', fontFamily: this.fonts.display, color: cssColor(p.vermilion),
+    }).setOrigin(1, 0).setDepth(40).setAlpha(0);
+    this.previewImages.push(kicker);
+
+    const offsetX = PREVIEW_X + (4 - shape[0].length) * CELL / 4;
+    const offsetY = PREVIEW_Y + 4;
+
+    const block = this.add.graphics().setDepth(40).setAlpha(0);
+    const inset = 1;
+    const cellSize = CELL - inset * 2;
+    for (let r = 0; r < shape.length; r++) {
+      for (let c = 0; c < shape[r].length; c++) {
+        if (!shape[r][c]) continue;
+        const x = offsetX + c * CELL + inset;
+        const y = offsetY + r * CELL + inset;
+        block.fillStyle(color, 1);
+        block.fillRect(x, y, cellSize, cellSize);
+        block.lineStyle(1, p.ink, 1);
+        block.strokeRect(x + 0.5, y + 0.5, cellSize - 1, cellSize - 1);
+        block.fillStyle(p.ink, 0.22);
+        block.fillRect(x + cellSize - 4, y, 4, 4);
+      }
+    }
+    this.previewImages.push(block);
+
+    this.tweens.add({
+      targets: [label, kicker, block],
+      alpha: 1,
+      duration: 220,
+      ease: 'Quad.easeOut',
+    });
+  }
+
   _getPieceCells(shape = this.getShape(), pieceX = this.currentPieceX, pieceY = this.currentPieceY) {
     const cells = [];
     for (let r = 0; r < shape.length; r++) {
@@ -645,6 +954,21 @@ export class TetrisScene extends BaseGameScene {
   }
 
   _spawnBoardFlash(color, alpha, duration) {
+    if (this.modernist) {
+      const p = this.palette;
+      // Print: a thin vermilion bar across the top of the board snaps in
+      // and fades — feels like a press-stamped alert, not an additive flash.
+      const stamp = this.add.graphics().setDepth(20);
+      stamp.lineStyle(2, p.vermilion, Math.min(1, alpha * 4));
+      stamp.strokeRect(BOARD_X - 3, BOARD_Y - 3, BOARD_W + 6, BOARD_H + 6);
+      this.tweens.add({
+        targets: stamp,
+        alpha: 0,
+        duration,
+        onComplete: () => stamp.destroy(),
+      });
+      return;
+    }
     const flash = this.add.rectangle(
       BOARD_X + BOARD_W / 2,
       BOARD_Y + BOARD_H / 2,
@@ -664,6 +988,26 @@ export class TetrisScene extends BaseGameScene {
   }
 
   _spawnClearBurst(x, y, count) {
+    if (this.modernist) {
+      const p = this.palette;
+      const tiers = [p.cyan, p.green, p.mustard, p.vermilion];
+      const mainColor = tiers[Math.min(count, 4) - 1];
+      DebrisSystem.shatter(this, x, y, {
+        count: 8 + count * 3,
+        colors: [mainColor, p.ink, p.vermilion],
+        size: 4,
+        spread: 36 + count * 10,
+        duration: 280 + count * 60,
+      });
+      DebrisSystem.dissolve(this, x, y, {
+        count: 5 + count * 2,
+        colors: [mainColor, p.ink],
+        width: BOARD_W * 0.6,
+        duration: 380 + count * 50,
+        riseHeight: 60,
+      });
+      return;
+    }
     const colors = [COLORS.NEON_CYAN, COLORS.NEON_GREEN, COLORS.NEON_ORANGE, COLORS.NEON_MAGENTA];
     const mainColor = colors[Math.min(count, 4) - 1];
 
@@ -687,10 +1031,13 @@ export class TetrisScene extends BaseGameScene {
   }
 
   _showClearCallout(text, color, x, y, size = 26) {
+    const labelColor = this.modernist
+      ? cssColor(this.palette.ink)
+      : '#ffffff';
     const label = this.add.text(x, y, text, {
       fontSize: `${size}px`,
-      fontFamily: 'monospace',
-      color: '#ffffff',
+      fontFamily: this.modernist ? this.fonts.display : this.fonts.ui,
+      color: labelColor,
     }).setOrigin(0.5).setDepth(60).setAlpha(0);
     NeonGlow.applyTextGlow(this, label, color);
     this.tweens.add({
@@ -715,6 +1062,24 @@ export class TetrisScene extends BaseGameScene {
 
   _spawnLockPulse(shape, color) {
     const cells = this._getPieceCells(shape);
+    if (this.modernist) {
+      const p = this.palette;
+      cells.forEach(({ x, y }) => {
+        const stamp = this.add.graphics().setDepth(25).setPosition(x, y);
+        stamp.lineStyle(1.5, p.ink, 0.85);
+        stamp.strokeRect(-CELL / 2 + 1, -CELL / 2 + 1, CELL - 2, CELL - 2);
+        this.tweens.add({
+          targets: stamp,
+          alpha: 0,
+          scaleX: 1.35,
+          scaleY: 1.35,
+          duration: 200,
+          ease: 'Quad.easeOut',
+          onComplete: () => stamp.destroy(),
+        });
+      });
+      return;
+    }
     cells.forEach(({ x, y }) => {
       // Glow ring on lock
       const pulse = this.add.image(x, y, 'tetris-block').setTint(color).setAlpha(0.5).setScale(0.9).setDepth(25);
@@ -745,10 +1110,28 @@ export class TetrisScene extends BaseGameScene {
   }
 
   _spawnHardDropTrail(shape, startY, endY) {
-    const color = PIECE_COLORS[this.currentType];
     const cells = this._getPieceCells(shape, this.currentPieceX, endY);
     const distance = Math.max(1, endY - startY);
 
+    if (this.modernist) {
+      const p = this.palette;
+      cells.forEach(({ x, y }) => {
+        const trail = this.add.graphics().setDepth(18);
+        trail.lineStyle(1, p.ink, 0.55);
+        trail.lineBetween(x, y - distance * CELL, x, y - CELL * 0.3);
+        trail.lineStyle(1, p.vermilion, 0.4);
+        trail.lineBetween(x - 4, y - distance * CELL + 4, x - 4, y - CELL * 0.5);
+        this.tweens.add({
+          targets: trail,
+          alpha: 0,
+          duration: 180 + distance * 8,
+          onComplete: () => trail.destroy(),
+        });
+      });
+      return;
+    }
+
+    const color = PIECE_COLORS[this.currentType];
     cells.forEach(({ x, y }) => {
       const trail = this.add.rectangle(
         x,
@@ -770,6 +1153,22 @@ export class TetrisScene extends BaseGameScene {
 
   _spawnRotateFlash() {
     const { x, y } = this._pieceCentroid();
+    if (this.modernist) {
+      const p = this.palette;
+      const arc = this.add.graphics().setDepth(22);
+      arc.lineStyle(1, p.vermilion, 0.85);
+      arc.strokeCircle(x, y, 8);
+      this.tweens.add({
+        targets: arc,
+        alpha: 0,
+        scaleX: 2.6,
+        scaleY: 2.6,
+        duration: 180,
+        ease: 'Quad.easeOut',
+        onComplete: () => arc.destroy(),
+      });
+      return;
+    }
     const ring = this.add.circle(x, y, 8, COLORS.NEON_CYAN, 0.22).setDepth(22);
     this.tweens.add({
       targets: ring,
@@ -782,6 +1181,22 @@ export class TetrisScene extends BaseGameScene {
   }
 
   _spawnPieceJitter(dx) {
+    if (this.modernist) {
+      const p = this.palette;
+      this._getPieceCells().forEach(({ x, y }) => {
+        const tick = this.add.graphics().setDepth(18);
+        tick.lineStyle(1, p.ink, 0.55);
+        tick.lineBetween(x - dx * 6, y - CELL * 0.3, x - dx * 6, y + CELL * 0.3);
+        this.tweens.add({
+          targets: tick,
+          alpha: 0,
+          x: tick.x + dx * 6,
+          duration: 100,
+          onComplete: () => tick.destroy(),
+        });
+      });
+      return;
+    }
     const color = PIECE_COLORS[this.currentType];
     this._getPieceCells().forEach(({ x, y }) => {
       const smear = this.add.rectangle(x - dx * 8, y, CELL * 0.4, CELL * 0.75, color, 0.12).setDepth(18);
@@ -796,6 +1211,22 @@ export class TetrisScene extends BaseGameScene {
   }
 
   _spawnSoftDropStreaks() {
+    if (this.modernist) {
+      const p = this.palette;
+      this._getPieceCells().forEach(({ x, y }) => {
+        const tick = this.add.graphics().setDepth(18);
+        tick.lineStyle(1, p.ink, 0.4);
+        tick.lineBetween(x, y - CELL * 0.55, x, y - CELL * 0.15);
+        this.tweens.add({
+          targets: tick,
+          y: tick.y + CELL * 0.4,
+          alpha: 0,
+          duration: 90,
+          onComplete: () => tick.destroy(),
+        });
+      });
+      return;
+    }
     const color = PIECE_COLORS[this.currentType];
     this._getPieceCells().forEach(({ x, y }) => {
       const streak = this.add.rectangle(x, y - CELL * 0.45, CELL * 0.18, CELL * 0.9, color, 0.16).setDepth(18);

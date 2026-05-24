@@ -13,3 +13,8 @@ executables_download_link.txt
 executables_download_link.txt.zip
 final_report.pdf
 MODERNIST_ROLLOUT.md
+
+# Modernist reference image library (~34MB of bible PNGs) — kept locally
+# next to MODERNIST_ASSETS.md so the prompt sheet links resolve, but not
+# tracked in source control. If you want to commit them, remove this line.
+docs/references/

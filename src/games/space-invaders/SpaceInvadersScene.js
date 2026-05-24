@@ -8,6 +8,14 @@ import ArcadeFX from '../../vfx/ArcadeFX.js';
 import DebrisSystem from '../../vfx/DebrisSystem.js';
 import RippleEffect from '../../vfx/RippleEffect.js';
 import CyberSceneFX from '../../vfx/CyberSceneFX.js';
+import PosterSceneFX from '../../vfx/PosterSceneFX.js';
+
+const MOD_INVADER_KEY = 'si-mod-invader';
+const MOD_PLAYER_KEY = 'si-mod-player-ship';
+const MOD_MOTHERSHIP_KEY = 'si-mod-mothership';
+const MOD_BULLET_KEY = 'si-mod-bullet';
+const MOD_ENEMY_BULLET_KEY = 'si-mod-enemy-bullet';
+const MOD_SHIELD_KEY = 'si-mod-shield';
 
 const COLS = 11;
 const ROWS = 5;
@@ -50,6 +58,8 @@ export class SpaceInvadersScene extends BaseGameScene {
     this.shieldCharges = 0;
     this._criticalWaveCueShown = false;
 
+    if (this.modernist) this._ensureModernistTextures();
+
     this.drawCyberArena();
     this.createPlayer();
     this.createInvaderGrid();
@@ -71,6 +81,10 @@ export class SpaceInvadersScene extends BaseGameScene {
   }
 
   drawCyberArena() {
+    if (this.modernist) {
+      this.drawModernistArena();
+      return;
+    }
     CyberSceneFX.drawCircuitBackdrop(this, {
       primary: COLORS.NEON_RED,
       secondary: COLORS.NEON_ORANGE,
@@ -100,20 +114,166 @@ export class SpaceInvadersScene extends BaseGameScene {
     });
   }
 
+  // Print-native arena: paper backdrop, axis ticks, poster HUD, two paper
+  // side panels ("> SWARM" / "> DEFENSE LOG"), upper-left sector stamp.
+  drawModernistArena() {
+    const p = this.palette;
+    this.cameras.main.setBackgroundColor(p.paper);
+
+    PosterSceneFX.drawPaperBackdrop(this, {
+      top: 32,
+      bottom: GAME_HEIGHT - 34,
+      depth: -35,
+      seam: false,
+      grid: true,
+      gridStep: 40,
+      grainDensity: 220,
+      seed: 0xc09a,
+    });
+
+    PosterSceneFX.drawAxisStripData(this, {
+      top: 36,
+      bottom: GAME_HEIGHT - 38,
+      depth: -8,
+      leftAlpha: 0.42,
+      rightAlpha: 0.34,
+    });
+
+    PosterSceneFX.drawPosterHudFrame(this, {
+      title: 'SPACE INVADERS // SWARM DEFENSE',
+      subtitle: 'NODE 72 · CX4024 · 1978',
+      barTop: 28,
+      barBottom: GAME_HEIGHT - 36,
+    });
+
+    PosterSceneFX.drawPaperPanel(this, 92, 150, 132, 96, {
+      accent: p.vermilion,
+      depth: -4,
+      label: '> SWARM',
+    });
+
+    PosterSceneFX.drawPaperPanel(this, GAME_WIDTH - 92, 150, 132, 96, {
+      accent: p.cyan,
+      depth: -4,
+      label: '> DEFENSE LOG',
+    });
+
+    PosterSceneFX.drawCoordinateBlock(this, 24, 56, {
+      label: 'SECTOR 4A',
+      coord: '11.2 N  32.0 E',
+      node: '72',
+      depth: -2,
+    });
+  }
+
+  // Generate flat modernist sprite sheet once. Invaders: monochrome ink.
+  // Player ship: vermilion outline triangle. Mothership: vermilion ellipse.
+  // Bullets: ink hash (player) / mustard hash (enemy). Shield: paper
+  // cross-hatched rectangle. No additive blend, no glow.
+  _ensureModernistTextures() {
+    const p = this.palette;
+
+    if (!this.textures.exists(MOD_INVADER_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(p.ink, 1);
+      // Body (mirrors original silhouette but flat ink, no glow)
+      g.fillRect(6, 4, 12, 8);
+      g.fillRect(4, 6, 16, 4);
+      g.fillRect(2, 8, 4, 2);
+      g.fillRect(18, 8, 4, 2);
+      // Legs
+      g.fillRect(6, 12, 2, 3);
+      g.fillRect(16, 12, 2, 3);
+      g.fillRect(8, 14, 2, 2);
+      g.fillRect(14, 14, 2, 2);
+      // Eyes (paper holes)
+      g.fillStyle(p.paper, 1);
+      g.fillRect(9, 7, 2, 2);
+      g.fillRect(13, 7, 2, 2);
+      g.generateTexture(MOD_INVADER_KEY, 24, 18);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_PLAYER_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.lineStyle(1.5, p.vermilion, 1);
+      g.beginPath();
+      g.moveTo(13, 2);
+      g.lineTo(23, 17);
+      g.lineTo(3, 17);
+      g.closePath();
+      g.strokePath();
+      g.lineStyle(1, p.ink, 0.85);
+      g.lineBetween(13, 5, 13, 16);
+      g.fillStyle(p.vermilion, 1);
+      g.fillRect(12, 9, 3, 3);
+      g.generateTexture(MOD_PLAYER_KEY, 26, 20);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_MOTHERSHIP_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.lineStyle(1.5, p.vermilion, 1);
+      g.strokeEllipse(18, 9, 32, 14);
+      g.lineStyle(1, p.ink, 0.7);
+      g.strokeEllipse(18, 9, 22, 8);
+      g.fillStyle(p.vermilion, 1);
+      g.fillRect(16, 7, 4, 4);
+      g.lineStyle(1, p.ink, 0.55);
+      g.lineBetween(6, 9, 30, 9);
+      g.generateTexture(MOD_MOTHERSHIP_KEY, 36, 18);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_BULLET_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(p.ink, 1);
+      g.fillRect(1, 0, 2, 10);
+      g.generateTexture(MOD_BULLET_KEY, 5, 10);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_ENEMY_BULLET_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(p.mustard, 1);
+      g.fillRect(1, 0, 2, 10);
+      g.lineStyle(1, p.ink, 1);
+      g.strokeRect(1, 0, 2, 10);
+      g.generateTexture(MOD_ENEMY_BULLET_KEY, 5, 10);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_SHIELD_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(p.paper, 1);
+      g.fillRect(0, 0, 40, 30);
+      g.lineStyle(1.5, p.ink, 1);
+      g.strokeRect(0.5, 0.5, 39, 29);
+      // Cross-hatch fill
+      g.lineStyle(1, p.ink, 0.45);
+      for (let i = -28; i < 40; i += 4) {
+        g.lineBetween(i, 0, i + 28, 28);
+      }
+      g.generateTexture(MOD_SHIELD_KEY, 40, 30);
+      g.destroy();
+    }
+  }
+
   _createShields() {
     this.shields = [];
     const shieldCount = 4;
     const spacing = GAME_WIDTH / (shieldCount + 1);
+    const tex = this.modernist ? MOD_SHIELD_KEY : 'shield';
     for (let i = 0; i < shieldCount; i++) {
       const sx = spacing * (i + 1);
       const sy = PLAYER_Y - 50;
-      const shield = this.add.image(sx, sy, 'shield')
+      const shield = this.add.image(sx, sy, tex)
         .setDisplaySize(40, 30)
-        .setAlpha(0.8)
+        .setAlpha(this.modernist ? 1 : 0.8)
         .setDepth(8);
       shield.setData('hp', 4);
       shield.setData('maxHp', 4);
-      shield.setBlendMode(Phaser.BlendModes.ADD);
+      if (!this.modernist) shield.setBlendMode(Phaser.BlendModes.ADD);
       this.shields.push(shield);
     }
   }
@@ -121,13 +281,30 @@ export class SpaceInvadersScene extends BaseGameScene {
   _damageShield(shield, hitX, hitY) {
     const hp = shield.getData('hp') - 1;
     shield.setData('hp', hp);
+    const p = this.palette;
+    const rippleColor = this.modernist ? p.vermilion : 0xffd700;
     RippleEffect.spawn(this, hitX || shield.x, hitY || shield.y, {
-      color: 0xffd700,
+      color: rippleColor,
       rings: 2,
       maxRadius: 25,
       duration: 300,
     });
-    shield.setAlpha(hp / shield.getData('maxHp') * 0.6 + 0.2);
+    if (this.modernist) {
+      // Damage tears the paper progressively — render hp as a vermilion
+      // diagonal slash stamped over the cross-hatch, then fade alpha gently.
+      const slash = this.add.graphics().setDepth(9);
+      slash.lineStyle(1.5, p.vermilion, 0.85);
+      const ox = (hitX || shield.x) - shield.x;
+      const oy = (hitY || shield.y) - shield.y;
+      slash.lineBetween(shield.x - 8 + ox, shield.y - 6 + oy, shield.x + 8 + ox, shield.y + 6 + oy);
+      this.tweens.add({
+        targets: slash, alpha: 0, duration: 320,
+        onComplete: () => slash.destroy(),
+      });
+      shield.setAlpha(0.6 + (hp / shield.getData('maxHp')) * 0.4);
+    } else {
+      shield.setAlpha(hp / shield.getData('maxHp') * 0.6 + 0.2);
+    }
     this.tweens.add({
       targets: shield,
       alpha: shield.alpha - 0.15,
@@ -135,9 +312,12 @@ export class SpaceInvadersScene extends BaseGameScene {
       yoyo: true,
     });
     if (hp <= 0) {
+      const colors = this.modernist
+        ? [p.vermilion, p.ink, p.mustard]
+        : [0xffd700, COLORS.NEON_YELLOW, COLORS.WHITE];
       DebrisSystem.shatter(this, shield.x, shield.y, {
         count: 8,
-        colors: [0xffd700, COLORS.NEON_YELLOW, COLORS.WHITE],
+        colors,
         size: 4,
         spread: 30,
       });
@@ -148,18 +328,24 @@ export class SpaceInvadersScene extends BaseGameScene {
   }
 
   createPlayer() {
+    const fallbackColor = this.modernist ? this.palette.vermilion : COLORS.GREEN;
     this.player = this.add.rectangle(
-      GAME_WIDTH / 2, PLAYER_Y, 28, 16, COLORS.GREEN
+      GAME_WIDTH / 2, PLAYER_Y, 28, 16, fallbackColor
     );
     this.player.setData('texture', 'player-ship');
     this.playerAlive = true;
 
-    const tex = this.textures.exists('player-ship');
-    if (tex) {
+    const wantedTex = this.modernist ? MOD_PLAYER_KEY : 'player-ship';
+    if (this.textures.exists(wantedTex)) {
       this.player.destroy();
-      this.player = this.add.sprite(GAME_WIDTH / 2, PLAYER_Y, 'player-ship');
+      this.player = this.add.sprite(GAME_WIDTH / 2, PLAYER_Y, wantedTex);
     }
-    this.player.setDepth(12).setBlendMode(Phaser.BlendModes.ADD);
+    this.player.setDepth(12);
+    if (this.modernist) {
+      this.playerGlow = null;
+      return;
+    }
+    this.player.setBlendMode(Phaser.BlendModes.ADD);
     this.playerGlow = this.add.circle(this.player.x, this.player.y, 22, COLORS.NEON_ORANGE, 0.14)
       .setDepth(10)
       .setBlendMode(Phaser.BlendModes.ADD);
@@ -173,22 +359,27 @@ export class SpaceInvadersScene extends BaseGameScene {
     const gridWidth = (COLS - 1) * INVADER_SPACING_X;
     const startX = (GAME_WIDTH - gridWidth) / 2;
 
+    const wantedTex = this.modernist ? MOD_INVADER_KEY : 'invader';
+    const fallbackColorTop = this.modernist ? this.palette.ink : COLORS.RED;
+    const fallbackColorBot = this.modernist ? this.palette.ink : COLORS.WHITE;
+
     for (let row = 0; row < totalRows; row++) {
       for (let col = 0; col < COLS; col++) {
         const x = startX + col * INVADER_SPACING_X;
         const y = GRID_TOP + row * INVADER_SPACING_Y;
 
         let invader;
-        if (this.textures.exists('invader')) {
-          invader = this.add.sprite(x, y, 'invader');
+        if (this.textures.exists(wantedTex)) {
+          invader = this.add.sprite(x, y, wantedTex);
         } else {
-          invader = this.add.rectangle(x, y, 22, 16, row < 2 ? COLORS.RED : COLORS.WHITE);
+          invader = this.add.rectangle(x, y, 22, 16, row < 2 ? fallbackColorTop : fallbackColorBot);
         }
 
         invader.setData('alive', true);
         invader.setData('row', row);
         invader.setData('col', col);
-        invader.setDepth(8).setBlendMode(Phaser.BlendModes.ADD);
+        invader.setDepth(8);
+        if (!this.modernist) invader.setBlendMode(Phaser.BlendModes.ADD);
         this.invaders.add(invader);
       }
     }
@@ -226,6 +417,10 @@ export class SpaceInvadersScene extends BaseGameScene {
   }
 
   syncNeonActors(time) {
+    if (this.modernist) {
+      // Print mode: no glow object, ink invaders sit flat — no alpha flicker.
+      return;
+    }
     if (this.playerGlow && this.player) {
       this.playerGlow.setPosition(this.player.x, this.player.y);
       this.playerGlow.setScale(1 + Math.sin(time * 0.012) * 0.12);
@@ -275,22 +470,28 @@ export class SpaceInvadersScene extends BaseGameScene {
     } else {
       this.spawnPlayerBullet(this.player.x, py, 0);
     }
+    const p = this.palette;
+    const burstColors = this.modernist
+      ? [p.ink, p.vermilion]
+      : [COLORS.NEON_CYAN, COLORS.WHITE];
     ArcadeFX.burst(this, this.player.x, py, {
       count: 8,
       distance: 24,
       duration: 160,
-      colors: [COLORS.NEON_CYAN, COLORS.WHITE],
+      colors: burstColors,
       size: 4,
     });
     SFX.siShoot();
   }
 
   spawnPlayerBullet(x, y, vx) {
+    const wantedTex = this.modernist ? MOD_BULLET_KEY : 'bullet';
     let bullet;
-    if (this.textures.exists('bullet')) {
-      bullet = this.add.sprite(x, y, 'bullet');
+    if (this.textures.exists(wantedTex)) {
+      bullet = this.add.sprite(x, y, wantedTex);
     } else {
-      bullet = this.add.rectangle(x, y, 4, 12, COLORS.CYAN);
+      const fb = this.modernist ? this.palette.ink : COLORS.CYAN;
+      bullet = this.add.rectangle(x, y, 4, 12, fb);
     }
     if (vx) bullet.setData('vx', vx);
     this.bullets.add(bullet);
@@ -372,9 +573,12 @@ export class SpaceInvadersScene extends BaseGameScene {
       },
     });
 
-    this.flashEffect(ix, iy, COLORS.WHITE);
+    const p = this.palette;
+    this.flashEffect(ix, iy, this.modernist ? p.vermilion : COLORS.WHITE);
     DebrisSystem.deathBurst(this, ix, iy, 'medium', {
-      colors: [COLORS.NEON_RED, COLORS.NEON_MAGENTA, COLORS.WHITE],
+      colors: this.modernist
+        ? [p.ink, p.vermilion, p.mustard]
+        : [COLORS.NEON_RED, COLORS.NEON_MAGENTA, COLORS.WHITE],
     });
 
     if (this.shouldTriggerPortalMothership()) {
@@ -400,10 +604,17 @@ export class SpaceInvadersScene extends BaseGameScene {
     const mx = this.mothershipSprite.x;
     const my = this.mothershipSprite.y;
     const isPortalShip = this.mothershipSprite.getData('portalShip');
+    const p = this.palette;
 
     this.score.award('mothership');
-    this.flashEffect(mx, my, isPortalShip ? COLORS.NEON_MAGENTA : COLORS.RED);
-    this.explosionEffect(mx, my, isPortalShip ? 16 : 12, [COLORS.RED, COLORS.NEON_MAGENTA, COLORS.WHITE], isPortalShip ? 84 : 64, isPortalShip ? 600 : 420);
+    const flashColor = this.modernist
+      ? (isPortalShip ? p.vermilion : p.ink)
+      : (isPortalShip ? COLORS.NEON_MAGENTA : COLORS.RED);
+    this.flashEffect(mx, my, flashColor);
+    const explosionColors = this.modernist
+      ? [p.vermilion, p.ink, p.mustard]
+      : [COLORS.RED, COLORS.NEON_MAGENTA, COLORS.WHITE];
+    this.explosionEffect(mx, my, isPortalShip ? 16 : 12, explosionColors, isPortalShip ? 84 : 64, isPortalShip ? 600 : 420);
 
     this.mothershipSprite.destroy();
     this.mothershipSprite = null;
@@ -411,12 +622,13 @@ export class SpaceInvadersScene extends BaseGameScene {
 
     if (isPortalShip && !this.portalTriggered) {
       this.portalTriggered = true;
+      const calloutColor = this.modernist ? p.vermilion : COLORS.NEON_MAGENTA;
       ArcadeFX.callout(this, 'RIFT OPEN', mx, my - 24, {
-        color: COLORS.NEON_MAGENTA,
+        color: calloutColor,
         fontSize: '20px',
       });
       GlitchEffect.screenTear(this, 260);
-      ArcadeFX.screenTint(this, { color: COLORS.NEON_MAGENTA, alpha: 0.12, duration: 260 });
+      ArcadeFX.screenTint(this, { color: calloutColor, alpha: 0.12, duration: 260 });
       this.time.delayedCall(400, () => this.triggerPortal(mx, my));
     }
   }
@@ -451,16 +663,22 @@ export class SpaceInvadersScene extends BaseGameScene {
     const startX = fromLeft ? -30 : GAME_WIDTH + 30;
     const dir = fromLeft ? 1 : -1;
 
-    if (this.textures.exists('mothership')) {
-      this.mothershipSprite = this.add.sprite(startX, this.gameArea.y + 20, 'mothership');
+    const p = this.palette;
+    const wantedTex = this.modernist ? MOD_MOTHERSHIP_KEY : 'mothership';
+    if (this.textures.exists(wantedTex)) {
+      this.mothershipSprite = this.add.sprite(startX, this.gameArea.y + 20, wantedTex);
     } else {
-      this.mothershipSprite = this.add.rectangle(startX, this.gameArea.y + 20, 32, 14, COLORS.RED);
+      const fb = this.modernist ? p.vermilion : COLORS.RED;
+      this.mothershipSprite = this.add.rectangle(startX, this.gameArea.y + 20, 32, 14, fb);
     }
 
     this.mothershipSprite.setData('dir', dir);
     this.mothershipSprite.setData('portalShip', isPortalShip);
+    const flashColor = this.modernist
+      ? (isPortalShip ? p.vermilion : p.ink)
+      : (isPortalShip ? COLORS.NEON_MAGENTA : COLORS.RED);
     ArcadeFX.flash(this, startX, this.gameArea.y + 20, {
-      color: isPortalShip ? COLORS.NEON_MAGENTA : COLORS.RED,
+      color: flashColor,
       radius: 20,
       alpha: 0.35,
       duration: 220,
@@ -468,7 +686,7 @@ export class SpaceInvadersScene extends BaseGameScene {
     });
     if (isPortalShip) {
       ArcadeFX.callout(this, 'PORTAL SHIP', GAME_WIDTH / 2, this.gameArea.y + 32, {
-        color: COLORS.NEON_MAGENTA,
+        color: this.modernist ? p.vermilion : COLORS.NEON_MAGENTA,
         fontSize: '18px',
       });
     }
@@ -520,21 +738,25 @@ export class SpaceInvadersScene extends BaseGameScene {
   }
 
   dropBomb(x, y) {
+    const p = this.palette;
+    const wantedTex = this.modernist ? MOD_ENEMY_BULLET_KEY : 'enemy-bullet';
     let bomb;
-    if (this.textures.exists('enemy-bullet')) {
-      bomb = this.add.sprite(x, y + 10, 'enemy-bullet');
+    if (this.textures.exists(wantedTex)) {
+      bomb = this.add.sprite(x, y + 10, wantedTex);
     } else {
-      bomb = this.add.rectangle(x, y + 10, 4, 10, COLORS.YELLOW);
+      const fb = this.modernist ? p.mustard : COLORS.YELLOW;
+      bomb = this.add.rectangle(x, y + 10, 4, 10, fb);
     }
     this.bombs.add(bomb);
+    const flashColor = this.modernist ? p.mustard : COLORS.NEON_ORANGE;
     ArcadeFX.flash(this, x, y + 10, {
-      color: COLORS.NEON_ORANGE,
+      color: flashColor,
       radius: 10,
       alpha: 0.28,
       duration: 140,
       shape: 'rect',
     });
-    const telegraph = this.add.rectangle(x, y + 28, 3, 28, COLORS.NEON_ORANGE, 0.18).setDepth(8);
+    const telegraph = this.add.rectangle(x, y + 28, 3, 28, flashColor, this.modernist ? 0.35 : 0.18).setDepth(8);
     this.tweens.add({
       targets: telegraph,
       alpha: 0,
@@ -589,11 +811,12 @@ export class SpaceInvadersScene extends BaseGameScene {
     this.moveTimer = Phaser.Math.Linear(MIN_MOVE_INTERVAL, BASE_MOVE_INTERVAL, ratio) / GameManager.speedMultiplier;
     if (ratio <= 0.28 && !this._criticalWaveCueShown) {
       this._criticalWaveCueShown = true;
+      const cueColor = this.modernist ? this.palette.vermilion : COLORS.NEON_ORANGE;
       ArcadeFX.callout(this, 'FINAL SWARM', GAME_WIDTH / 2, GRID_TOP - 20, {
-        color: COLORS.NEON_ORANGE,
+        color: cueColor,
         fontSize: '20px',
       });
-      ArcadeFX.screenTint(this, { color: COLORS.NEON_ORANGE, alpha: 0.08, duration: 220 });
+      ArcadeFX.screenTint(this, { color: cueColor, alpha: 0.08, duration: 220 });
     }
 
     let edgeHit = false;
@@ -630,19 +853,32 @@ export class SpaceInvadersScene extends BaseGameScene {
 
   onHit() {
     if (this.invincible) return;
+    const p = this.palette;
 
     if (this.shieldCharges > 0) {
       this.shieldCharges--;
-      this.flashEffect(this.player.x, this.player.y, COLORS.NEON_CYAN);
-      this.explosionEffect(this.player.x, this.player.y, 10, [COLORS.NEON_CYAN, COLORS.WHITE], 34, 220);
-      ArcadeFX.screenTint(this, { color: COLORS.NEON_CYAN, alpha: 0.08, duration: 140 });
+      const safeColor = this.modernist ? p.cyan : COLORS.NEON_CYAN;
+      this.flashEffect(this.player.x, this.player.y, safeColor);
+      this.explosionEffect(
+        this.player.x, this.player.y, 10,
+        this.modernist ? [p.cyan, p.ink] : [COLORS.NEON_CYAN, COLORS.WHITE],
+        34, 220,
+      );
+      ArcadeFX.screenTint(this, { color: safeColor, alpha: 0.08, duration: 140 });
       return;
     }
 
-    this.flashEffect(this.player.x, this.player.y, COLORS.RED);
-    this.explosionEffect(this.player.x, this.player.y, 14, [COLORS.NEON_RED, COLORS.NEON_ORANGE, COLORS.WHITE], 52, 320);
+    const hitColor = this.modernist ? p.vermilion : COLORS.RED;
+    this.flashEffect(this.player.x, this.player.y, hitColor);
+    this.explosionEffect(
+      this.player.x, this.player.y, 14,
+      this.modernist
+        ? [p.vermilion, p.ink, p.mustard]
+        : [COLORS.NEON_RED, COLORS.NEON_ORANGE, COLORS.WHITE],
+      52, 320,
+    );
     GlitchEffect.chromaticAberration(this, 180);
-    ArcadeFX.screenTint(this, { color: COLORS.NEON_RED, alpha: 0.12, duration: 180 });
+    ArcadeFX.screenTint(this, { color: hitColor, alpha: 0.12, duration: 180 });
     const alive = this.onPlayerDeath();
 
     if (alive) {

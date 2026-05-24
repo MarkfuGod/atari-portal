@@ -6,7 +6,7 @@ import BGM from '../core/AudioManager.js';
 import NeonGlow from '../vfx/NeonGlow.js';
 import GlitchEffect from '../vfx/GlitchEffect.js';
 import AudioBackground from '../vfx/AudioBackground.js';
-import { getVisualStyle, isModernistStyle } from '../core/VisualStyle.js';
+import { getVisualStyle, isModernistStyle, getFonts } from '../core/VisualStyle.js';
 
 export class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -17,6 +17,7 @@ export class GameOverScene extends Phaser.Scene {
     this.visualStyle = getVisualStyle();
     this.palette = this.visualStyle.palette;
     this.modernist = isModernistStyle();
+    const f = this.visualStyle.fonts || getFonts();
     try { this.scene.stop('HUDScene'); } catch (_) {}
     try { this.scene.stop('CRTOverlay'); } catch (_) {}
     this.scene.bringToTop();
@@ -44,8 +45,8 @@ export class GameOverScene extends Phaser.Scene {
     }
 
     const title = this.add.text(GAME_WIDTH / 2, 170, 'CONNECTION LOST', {
-      fontSize: '38px',
-      fontFamily: 'monospace',
+      fontSize: '46px',
+      fontFamily: f.display,
       color: this.modernist ? this.visualStyle.css.vermilion : '#ff1744',
     }).setOrigin(0.5);
     if (!this.modernist) NeonGlow.applyTextGlow(this, title, COLORS.NEON_RED);
@@ -57,27 +58,27 @@ export class GameOverScene extends Phaser.Scene {
     });
 
     this.add.text(GAME_WIDTH / 2, 250, `SCORE: ${String(GameManager.state.totalScore).padStart(7, '0')}`, {
-      fontSize: '22px',
-      fontFamily: 'monospace',
+      fontSize: '24px',
+      fontFamily: f.mono,
       color: this.modernist ? this.visualStyle.css.paper : '#00f0ff',
     }).setOrigin(0.5);
 
     this.add.text(GAME_WIDTH / 2, 290, `SECTORS: ${GameManager.state.gamesCompleted.length}  |  CREDITS: ${GameManager.state.coins}`, {
       fontSize: '14px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: this.modernist ? this.visualStyle.css.muted : '#555577',
     }).setOrigin(0.5);
 
     const hs = GameManager.getHighScore();
     this.add.text(GAME_WIDTH / 2, 325, `BEST: ${String(hs).padStart(7, '0')}`, {
       fontSize: '14px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: this.modernist ? this.visualStyle.css.mustard : '#b845ff',
     }).setOrigin(0.5);
 
     const restart = this.add.text(GAME_WIDTH / 2, 410, '> RECONNECT', {
-      fontSize: '18px',
-      fontFamily: 'monospace',
+      fontSize: '20px',
+      fontFamily: f.ui,
       color: this.modernist ? this.visualStyle.css.paper : '#ffffff',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     restart.on('pointerover', () => restart.setColor(this.modernist ? this.visualStyle.css.vermilion : '#00f0ff'));

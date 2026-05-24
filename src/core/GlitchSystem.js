@@ -2,6 +2,7 @@ import { GLITCH_CONFIG, COLORS, GAME_WIDTH, GAME_HEIGHT } from '../config.js';
 import { GameManager } from './GameManager.js';
 import GlitchEffect from '../vfx/GlitchEffect.js';
 import SFX from './SFXManager.js';
+import { getFonts, isModernistStyle, getVisualStyle, cssColor } from './VisualStyle.js';
 
 const ANOMALY_TYPES = [
   'CONTROL_INVERSION',
@@ -148,11 +149,32 @@ export class GlitchSystem {
       DATA_LEAK: '#ffd700',
     };
 
+    const modernist = isModernistStyle();
+    const fonts = getFonts();
+    // In modernist, route the anomaly callout through palette ink + a vermilion
+    // ribbon banner (per § 4.2 plan). NEON keeps the saturated anomaly colors.
+    const palette = getVisualStyle().palette;
+    const labelColor = modernist ? cssColor(palette.ink) : (colors[type] || '#ffffff');
+    const prefix = modernist ? '> ALERT 0x041  // ' : 'ANOMALY: ';
     const label = this.scene.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60,
-      'ANOMALY: ' + (names[type] || type), {
-        fontSize: '20px', fontFamily: 'monospace',
-        color: colors[type] || '#ffffff',
+      prefix + (names[type] || type), {
+        fontSize: modernist ? '22px' : '20px',
+        fontFamily: modernist ? fonts.display : fonts.mono,
+        color: labelColor,
       }).setOrigin(0.5).setDepth(300).setAlpha(0);
+    if (modernist) {
+      label.setStroke(cssColor(palette.paper), 2);
+      // Vermilion ribbon under the alert — print-stamp banner accent.
+      const ribbon = this.scene.add.graphics().setDepth(299).setAlpha(0);
+      ribbon.fillStyle(palette.vermilion, 1);
+      ribbon.fillRect(0, GAME_HEIGHT / 2 - 70, GAME_WIDTH, 22);
+      this.scene.tweens.add({
+        targets: ribbon,
+        alpha: { from: 0, to: 0.95 },
+        duration: 220, yoyo: true, hold: 800, repeat: 0,
+        onComplete: () => ribbon.destroy(),
+      });
+    }
 
     this.scene.tweens.add({
       targets: label,

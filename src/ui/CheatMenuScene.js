@@ -4,6 +4,7 @@ import { GameManager } from '../core/GameManager.js';
 import { MutationSystem } from '../core/MutationSystem.js';
 import { ModSystem } from '../core/ModSystem.js';
 import NeonGlow from '../vfx/NeonGlow.js';
+import { getFonts } from '../core/VisualStyle.js';
 
 const cyan = '#00f0ff';
 const magenta = '#ff00e6';
@@ -37,17 +38,18 @@ export class CheatMenuScene extends Phaser.Scene {
     NeonGlow.strokeRect(frame, 90, 60, 620, 480, COLORS.NEON_CYAN, 1, 0.45);
     NeonGlow.cornerAccents(frame, 90, 60, 620, 480, 18, COLORS.NEON_CYAN, 2);
 
+    const f = getFonts();
     const title = this.add.text(GAME_WIDTH / 2, 92, 'CHEAT CONSOLE', {
-      fontSize: '28px', fontFamily: 'monospace', color: cyan,
+      fontSize: '32px', fontFamily: f.display, color: cyan,
     }).setOrigin(0.5);
     NeonGlow.applyTextGlow(this, title, COLORS.NEON_CYAN);
 
     this.add.text(GAME_WIDTH / 2, 124, 'UP/DOWN select  option rows use LEFT/RIGHT  number rows type directly  ENTER apply  ESC close', {
-      fontSize: '10px', fontFamily: 'monospace', color: muted,
+      fontSize: '10px', fontFamily: f.mono, color: muted,
     }).setOrigin(0.5);
 
     this.feedbackText = this.add.text(GAME_WIDTH / 2, 510, '', {
-      fontSize: '12px', fontFamily: 'monospace', color: green,
+      fontSize: '12px', fontFamily: f.ui, color: green,
     }).setOrigin(0.5);
 
     this.rows = [];
@@ -93,16 +95,17 @@ export class CheatMenuScene extends Phaser.Scene {
       { key: 'portalTokens', label: 'PORTAL TOKENS', step: 1, min: 0, max: 99, kind: 'number' },
     ];
 
+    const fonts = getFonts();
     defs.forEach((def, index) => {
       const y = startY + index * gap;
       const label = this.add.text(leftX, y, def.label, {
-        fontSize: '15px', fontFamily: 'monospace', color: muted,
+        fontSize: '15px', fontFamily: fonts.ui, color: muted,
       });
       const value = this.add.text(valueX, y, '', {
-        fontSize: '15px', fontFamily: 'monospace', color: '#ffffff',
+        fontSize: '15px', fontFamily: fonts.mono, color: '#ffffff',
       });
       const marker = this.add.text(leftX - 22, y, '>', {
-        fontSize: '15px', fontFamily: 'monospace', color: orange,
+        fontSize: '15px', fontFamily: fonts.mono, color: orange,
       }).setVisible(false);
       this.rows.push({ ...def, label, value, marker });
     });

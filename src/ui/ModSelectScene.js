@@ -4,7 +4,7 @@ import { GameManager } from '../core/GameManager.js';
 import SFX from '../core/SFXManager.js';
 import NeonGlow from '../vfx/NeonGlow.js';
 import AudioBackground from '../vfx/AudioBackground.js';
-import { cssColor, getVisualStyle, isModernistStyle } from '../core/VisualStyle.js';
+import { cssColor, getVisualStyle, isModernistStyle, getFonts } from '../core/VisualStyle.js';
 
 const cyan = '#00f0ff';
 const magenta = '#ff00e6';
@@ -19,6 +19,7 @@ export class ModSelectScene extends Phaser.Scene {
     this.visualStyle = getVisualStyle();
     this.palette = this.visualStyle.palette;
     this.modernist = isModernistStyle();
+    this.fonts = this.visualStyle.fonts || getFonts();
     this.toScene = data.to;
     this.fromScene = data.from;
     this._sleepOverlay('HUDScene');
@@ -31,15 +32,15 @@ export class ModSelectScene extends Phaser.Scene {
     this.drawGridBackground();
 
     const title = this.add.text(GAME_WIDTH / 2, 60, 'MOD SELECT', {
-      fontSize: this.modernist ? '24px' : '28px',
-      fontFamily: 'monospace',
+      fontSize: this.modernist ? '32px' : '32px',
+      fontFamily: this.fonts.display,
       color: this.modernist ? this.visualStyle.css.paper : cyan,
     }).setOrigin(0.5);
     if (!this.modernist) NeonGlow.applyTextGlow(this, title, COLORS.NEON_CYAN);
 
     this.add.text(GAME_WIDTH / 2, 95, 'Choose an upgrade for your run', {
       fontSize: '12px',
-      fontFamily: 'monospace',
+      fontFamily: this.fonts.ui,
       color: this.modernist ? this.visualStyle.css.muted : '#555577',
     }).setOrigin(0.5);
 
@@ -75,8 +76,8 @@ export class ModSelectScene extends Phaser.Scene {
     });
 
     const skipBtn = this.add.text(GAME_WIDTH / 2, 480, '> SKIP', {
-      fontSize: '14px',
-      fontFamily: 'monospace',
+      fontSize: '15px',
+      fontFamily: this.fonts.ui,
       color: this.modernist ? this.visualStyle.css.paper : '#555577',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     skipBtn.on('pointerover', () => skipBtn.setColor(this.modernist ? this.visualStyle.css.vermilion : cyan));
@@ -122,8 +123,9 @@ export class ModSelectScene extends Phaser.Scene {
       g.fillRect(cx - w / 2, cy - h / 2, 22, h);
     }
 
+    const f = this.fonts;
     this.add.text(cx, cy - h / 2 + 20, mod.category.toUpperCase(), {
-      fontSize: '9px', fontFamily: 'monospace', color: catHex,
+      fontSize: '10px', fontFamily: f.ui, color: catHex,
     }).setOrigin(0.5);
 
     try {
@@ -131,15 +133,15 @@ export class ModSelectScene extends Phaser.Scene {
     } catch (_) {}
 
     const nameText = this.add.text(cx, cy + 20, mod.name, {
-      fontSize: '14px',
-      fontFamily: 'monospace',
+      fontSize: '16px',
+      fontFamily: f.display,
       color: modernist ? css.ink : '#ffffff',
     }).setOrigin(0.5);
     if (!modernist) NeonGlow.applyTextGlow(this, nameText, catColor);
 
     this.add.text(cx, cy + 50, mod.description, {
       fontSize: '10px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: modernist ? '#4f4a3f' : '#888899',
       wordWrap: { width: w - 20 },
       align: 'center',
@@ -207,14 +209,14 @@ export class ModSelectScene extends Phaser.Scene {
 
     this.add.text(GAME_WIDTH / 2, 520, 'ACTIVE MODS:', {
       fontSize: '10px',
-      fontFamily: 'monospace',
+      fontFamily: this.fonts.ui,
       color: this.modernist ? this.visualStyle.css.muted : '#444466',
     }).setOrigin(0.5);
 
     const names = mods.map(m => m.name).join(' | ');
     this.add.text(GAME_WIDTH / 2, 540, names, {
-      fontSize: '10px',
-      fontFamily: 'monospace',
+      fontSize: '11px',
+      fontFamily: this.fonts.mono,
       color: this.modernist ? this.visualStyle.css.paper : '#666688',
     }).setOrigin(0.5);
   }

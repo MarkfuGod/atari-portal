@@ -11,7 +11,8 @@ import AudioReactive from '../core/AudioReactiveSystem.js';
 import NeonGlow from '../vfx/NeonGlow.js';
 import GlitchEffect from '../vfx/GlitchEffect.js';
 import AudioBackground from '../vfx/AudioBackground.js';
-import { cssColor, getVisualStyle, isModernistStyle } from '../core/VisualStyle.js';
+import PosterSceneFX from '../vfx/PosterSceneFX.js';
+import { cssColor, getVisualStyle, getFonts, isModernistStyle } from '../core/VisualStyle.js';
 
 export class BaseGameScene extends Phaser.Scene {
   constructor(key, scoreKey) {
@@ -24,6 +25,7 @@ export class BaseGameScene extends Phaser.Scene {
     this.visualStyle = getVisualStyle();
     this.palette = this.visualStyle.palette;
     this.modernist = isModernistStyle();
+    this.fonts = this.visualStyle.fonts || getFonts();
     this.cameras.main.setBackgroundColor(this.palette.terminal);
     AudioBackground.setScene(this.sceneKey, GameManager.state.mode);
     console.log('[AudioReactive] BaseGameScene create', this.sceneKey);
@@ -145,7 +147,7 @@ export class BaseGameScene extends Phaser.Scene {
         const ch = chars[Math.floor(Math.random() * chars.length)];
         const a = (0.06 + (1 - j / len) * 0.08) * density;
         const txt = this.add.text(cx, -20 - j * 14, ch, {
-          fontSize: '10px', fontFamily: 'monospace', color,
+          fontSize: '10px', fontFamily: this.fonts.mono, color,
         }).setAlpha(this.modernist ? a * 0.7 : a).setDepth(1);
         this._dataStreamItems.push({ obj: txt, speed, startX: cx });
         this.tweens.add({
@@ -272,6 +274,15 @@ export class BaseGameScene extends Phaser.Scene {
     const fx = this._foregroundFocus.x;
     const fy = this._foregroundFocus.y;
     const cam = this.cameras.main;
+
+    if (this.modernist) {
+      cam.setRotation(0);
+      cam.setZoom(1);
+      cam.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
+      this._updateCanvasPerspective(0, 0);
+      return;
+    }
+
     cam.setRotation(fx * 0.025);
     cam.setZoom(1.015 + (Math.abs(fx) + Math.abs(fy)) * 0.012);
     cam.centerOn(
@@ -285,11 +296,18 @@ export class BaseGameScene extends Phaser.Scene {
   _updateCanvasPerspective(fx, fy) {
     const canvas = this.game?.canvas;
     if (!canvas) return;
-    const depth = (Math.abs(fx) + Math.abs(fy)) * 18;
     const mirrorScale = this._mutMirror ? -1 : 1;
     canvas.style.transformOrigin = '50% 50%';
-    canvas.style.transformStyle = 'preserve-3d';
     canvas.style.willChange = 'transform';
+
+    if (this.modernist) {
+      canvas.style.transformStyle = 'flat';
+      canvas.style.transform = `scaleX(${mirrorScale})`;
+      return;
+    }
+
+    const depth = (Math.abs(fx) + Math.abs(fy)) * 18;
+    canvas.style.transformStyle = 'preserve-3d';
     canvas.style.transform = [
       'perspective(900px)',
       `scaleX(${mirrorScale})`,
@@ -313,21 +331,39 @@ export class BaseGameScene extends Phaser.Scene {
   onSpeedBoostEnd() {}
 
   showBoostFlash() {
-    const flash = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40, 'SPEED BOOST!', {
-      fontSize: '24px', fontFamily: 'monospace', color: '#ff6e00',
+    const x = GAME_WIDTH / 2;
+    const y = GAME_HEIGHT / 2 - 40;
+    const color = this.modernist ? cssColor(this.palette.vermilion) : '#ff6e00';
+    const flash = this.add.text(x, y, 'SPEED BOOST!', {
+      fontSize: this.modernist ? '28px' : '24px',
+      fontFamily: this.modernist ? this.fonts.display : this.fonts.ui,
+      color,
     }).setOrigin(0.5).setDepth(200).setAlpha(0);
-    NeonGlow.applyTextGlow(this, flash, COLORS.NEON_ORANGE);
+
+    if (this.modernist) {
+      flash.setStroke(cssColor(this.palette.ink), 1);
+    } else {
+      NeonGlow.applyTextGlow(this, flash, COLORS.NEON_ORANGE);
+    }
+
+    // Rubber-stamp rule under the text in modernist
+    let rule = null;
+    if (this.modernist) {
+      rule = this.add.graphics().setDepth(200).setAlpha(0);
+      rule.lineStyle(2, this.palette.vermilion, 1);
+      rule.lineBetween(x - 80, y + 14, x + 80, y + 14);
+    }
 
     this.tweens.add({
-      targets: flash,
-      alpha: { from: 0, to: 1 }, y: flash.y - 30, scale: { from: 0.5, to: 1.2 },
+      targets: rule ? [flash, rule] : flash,
+      alpha: { from: 0, to: 1 }, y: y - 30, scale: { from: 0.5, to: 1.2 },
       duration: 400, ease: 'Back.easeOut',
       onComplete: () => {
         this.tweens.add({
-          targets: flash,
-          alpha: 0, y: flash.y - 20,
+          targets: rule ? [flash, rule] : flash,
+          alpha: 0, y: y - 50,
           duration: 600, delay: 400,
-          onComplete: () => flash.destroy(),
+          onComplete: () => { flash.destroy(); if (rule) rule.destroy(); },
         });
       }
     });
@@ -344,9 +380,15 @@ export class BaseGameScene extends Phaser.Scene {
   showHackDenied() {
     const charge = GameManager.state.hackCharge || 0;
     const pct = Math.floor((charge / HACK_CONFIG.MAX_CHARGE) * 100);
+    const color = this.modernist ? cssColor(this.palette.vermilion) : '#ff1744';
     const txt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40, `HACK CHARGE: ${pct}%`, {
-      fontSize: '16px', fontFamily: 'monospace', color: '#ff1744',
+      fontSize: '16px',
+      fontFamily: this.modernist ? this.fonts.ui : this.fonts.mono,
+      color,
     }).setOrigin(0.5).setDepth(300).setAlpha(0);
+    if (this.modernist) {
+      txt.setStroke(cssColor(this.palette.ink), 1);
+    }
 
     this.tweens.add({
       targets: txt,
@@ -369,6 +411,45 @@ export class BaseGameScene extends Phaser.Scene {
     SFX.boost();
     GlitchEffect.chromaticAberration(this, 600);
 
+    if (this.modernist) {
+      // Print-context overlay: a faint paper wash + vermilion top/bottom rule.
+      // No additive blend, no neon glow — reads like an "OVERRIDE" rubber stamp
+      // applied to the whole page.
+      const overlay = this.add.graphics().setDepth(250);
+      overlay.fillStyle(this.palette.paper, 0.08);
+      overlay.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      overlay.lineStyle(2, this.palette.vermilion, 0.9);
+      overlay.lineBetween(0, 34, GAME_WIDTH, 34);
+      overlay.lineBetween(0, GAME_HEIGHT - 34, GAME_WIDTH, GAME_HEIGHT - 34);
+      this._hackOverlay = overlay;
+
+      const txt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60, 'ACCESS GRANTED', {
+        fontSize: '32px', fontFamily: this.fonts.display,
+        color: cssColor(this.palette.ink),
+      }).setOrigin(0.5).setDepth(300).setAlpha(0);
+      txt.setStroke(cssColor(this.palette.paper), 2);
+
+      const rule = this.add.graphics().setDepth(300).setAlpha(0);
+      rule.lineStyle(2, this.palette.vermilion, 1);
+      rule.lineBetween(GAME_WIDTH / 2 - 90, GAME_HEIGHT / 2 - 40, GAME_WIDTH / 2 + 90, GAME_HEIGHT / 2 - 40);
+
+      this.tweens.add({
+        targets: [txt, rule],
+        alpha: { from: 0, to: 1 }, scale: { from: 0.5, to: 1 },
+        duration: 400,
+        onComplete: () => {
+          this.tweens.add({
+            targets: [txt, rule], alpha: 0, y: '-=20',
+            duration: 500, delay: 600,
+            onComplete: () => { txt.destroy(); rule.destroy(); },
+          });
+        }
+      });
+
+      this.events.emit('hack-changed');
+      return;
+    }
+
     const overlay = this.add.rectangle(
       GAME_WIDTH / 2, GAME_HEIGHT / 2,
       GAME_WIDTH, GAME_HEIGHT,
@@ -377,7 +458,7 @@ export class BaseGameScene extends Phaser.Scene {
     this._hackOverlay = overlay;
 
     const txt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60, 'ACCESS GRANTED', {
-      fontSize: '28px', fontFamily: 'monospace', color: '#39ff14',
+      fontSize: '28px', fontFamily: this.fonts.ui, color: '#39ff14',
     }).setOrigin(0.5).setDepth(300).setAlpha(0);
     NeonGlow.applyTextGlow(this, txt, COLORS.NEON_GREEN);
 
@@ -413,6 +494,35 @@ export class BaseGameScene extends Phaser.Scene {
     this.portal.spawnPortal(x, y);
     this.shakeCamera(0.005, 300);
     this.showPortalHint();
+    if (this.modernist) this._spawnPortalHalftoneStamp(x, y);
+  }
+
+  // Print-native arrival stamp: a halftone field expands outward from the
+  // portal spawn point, then fades — a rubber-stamp accent in place of the
+  // neon overlay rectangle.
+  _spawnPortalHalftoneStamp(x, y) {
+    try {
+      const field = PosterSceneFX.drawHalftoneField(this, x, y, 60, {
+        rings: 8,
+        depth: 95,
+        alpha: 0.55,
+      });
+      if (!field || !field.graphics) return;
+      const tick = { s: 0.3, b: 0.25 };
+      this.tweens.add({
+        targets: tick,
+        s: 1.35, b: 0,
+        duration: 700, ease: 'Cubic.easeOut',
+        onUpdate: () => field.draw(tick.s, tick.b),
+        onComplete: () => {
+          this.tweens.add({
+            targets: field.graphics,
+            alpha: 0, duration: 350,
+            onComplete: () => { try { field.graphics.destroy(); } catch (_) {} },
+          });
+        },
+      });
+    } catch (_) { /* safe */ }
   }
 
   showPortalHint() {
@@ -421,9 +531,15 @@ export class BaseGameScene extends Phaser.Scene {
 
   _showHintText(msg) {
     if (this._portalHint) { try { this._portalHint.destroy(); } catch (_) {} }
+    const color = this.modernist ? cssColor(this.palette.vermilion) : '#b845ff';
     this._portalHint = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 16, msg, {
-      fontSize: '13px', fontFamily: 'monospace', color: '#b845ff',
+      fontSize: '13px',
+      fontFamily: this.modernist ? this.fonts.ui : this.fonts.mono,
+      color,
     }).setOrigin(0.5).setDepth(200);
+    if (this.modernist) {
+      this._portalHint.setStroke(cssColor(this.palette.ink), 1);
+    }
     this.tweens.add({
       targets: this._portalHint,
       alpha: { from: 1, to: 0.3 },
@@ -520,13 +636,28 @@ export class BaseGameScene extends Phaser.Scene {
     const y = worldY != null ? worldY - 20 : GAME_HEIGHT / 2 - 30;
 
     const size = count >= 5 ? '22px' : count >= 3 ? '18px' : '14px';
-    const color = count >= 5 ? '#ff00e6' : count >= 3 ? '#ff6e00' : '#00f0ff';
+    let color;
+    if (this.modernist) {
+      // Tiered ink stamp — vermilion for the saturated tier, ink/mustard below.
+      color = count >= 5
+        ? cssColor(this.palette.vermilion)
+        : count >= 3 ? cssColor(this.palette.mustard) : cssColor(this.palette.ink);
+    } else {
+      color = count >= 5 ? '#ff00e6' : count >= 3 ? '#ff6e00' : '#00f0ff';
+    }
     const suffix = count >= 5 ? '!!' : count >= 3 ? '!' : '';
     const label = count >= 5 ? 'MAX COMBO' : 'COMBO';
 
     const txt = this.add.text(x, y, `x${count} ${label}${suffix}`, {
-      fontSize: size, fontFamily: 'monospace', color,
+      fontSize: size,
+      fontFamily: this.modernist ? this.fonts.display : this.fonts.ui,
+      color,
     }).setOrigin(0.5).setDepth(400).setAlpha(0);
+
+    if (this.modernist) {
+      // 1px ink outline for a print-stamp read at every tier.
+      txt.setStroke(cssColor(this.palette.ink), 1);
+    }
 
     this.tweens.add({
       targets: txt,
@@ -552,9 +683,10 @@ export class BaseGameScene extends Phaser.Scene {
     if (!worldX && !worldY) return;
     const x = worldX || GAME_WIDTH / 2;
     const y = worldY || GAME_HEIGHT / 2;
+    const color = this.modernist ? cssColor(this.palette.ink) : '#00f0ff';
 
     const txt = this.add.text(x, y, `+${points}`, {
-      fontSize: '12px', fontFamily: 'monospace', color: '#00f0ff',
+      fontSize: '13px', fontFamily: this.fonts.mono, color,
     }).setOrigin(0.5).setDepth(350).setAlpha(0.9);
 
     this.tweens.add({

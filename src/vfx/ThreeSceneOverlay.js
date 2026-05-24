@@ -732,6 +732,7 @@ const ThreeSceneOverlay = {
   },
 
   _shouldShowArms() {
+    if (getVisualStyle().id === VISUAL_STYLE_IDS.MODERNIST) return false;
     const theme = this._theme || THEMES[this._sceneName] || THEMES.default;
     return this._animationEffectsLevel === 'high' && !!theme.showArms;
   },
@@ -857,7 +858,15 @@ const ThreeSceneOverlay = {
         primary: style.palette.cyan,
         secondary: sceneName === 'GameOverScene' ? style.palette.vermilion : style.palette.paper,
         accent: style.palette.mustard,
-        overlayOpacity: Math.min(baseTheme.overlayOpacity ?? THEMES.default.overlayOpacity, 0.46),
+        showCenter: false,
+        showPanels: false,
+        showMonitors: false,
+        showBeams: false,
+        showDepthGrid: false,
+        showMazeHologram: false,
+        showRiftField: false,
+        showArms: false,
+        overlayOpacity: 0,
       }
       : baseTheme;
     this._theme = theme;

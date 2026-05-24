@@ -18,6 +18,7 @@ import { FroggerScene } from './games/frogger/FroggerScene.js';
 import { AsteroidsScene } from './games/asteroids/AsteroidsScene.js';
 import { TetrisScene } from './games/tetris/TetrisScene.js';
 import AudioBackground from './vfx/AudioBackground.js';
+import StageGutterFx from './vfx/StageGutterFx.js';
 import { SnakeGame } from './games/snake/SnakeGame.js';
 import { PinballScene } from './games/pinball/PinballScene.js';
 import { FallDownScene } from './games/falldown/FallDownScene.js';
@@ -26,9 +27,13 @@ const config = {
   type: Phaser.AUTO,
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
-  parent: document.body,
+  parent: 'game-root',
   backgroundColor: '#0a0a1a',
   pixelArt: true,
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
   physics: {
     default: 'arcade',
     arcade: {
@@ -60,5 +65,28 @@ const config = {
   ]
 };
 
-new Phaser.Game(config);
-AudioBackground.init();
+function bootGame() {
+  new Phaser.Game(config);
+  AudioBackground.init();
+  StageGutterFx.init();
+}
+
+// Ensure modernist typography (Albatross / HS LunaObscura / Monowire) is parsed
+// and ready before Phaser starts measuring/rasterizing text into the canvas.
+// Without this gate, the first paint of MenuScene/HUDScene falls back to
+// generic sans/monospace and the poster layout shifts when the @font-face
+// files arrive a few hundred ms later.
+if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+  const loaders = [
+    document.fonts.load('1em "Albatross"'),
+    document.fonts.load('1em "HS LunaObscura"'),
+    document.fonts.load('1em "Monowire"'),
+  ];
+  Promise.all(loaders)
+    .catch(() => { /* fall through; @font-face fallbacks will still render */ })
+    .then(() => document.fonts.ready)
+    .catch(() => null)
+    .finally(bootGame);
+} else {
+  bootGame();
+}

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GAME_WIDTH, GAME_HEIGHT } from '../config.js';
 import AudioReactive from '../core/AudioReactiveSystem.js';
 import ThreeSceneOverlay from './ThreeSceneOverlay.js';
 
@@ -1498,6 +1499,36 @@ const AudioBackground = {
     this._current = 'synthwave';
 
     this._clock = new THREE.Clock();
+    this._stageBg = {
+      energy: 0,
+      bass: 0,
+      beat: 0,
+      focusX: 0,
+      focusY: 0,
+      targetFocusX: 0,
+      targetFocusY: 0,
+      motion: 0,
+      lastFocusX: null,
+      lastFocusY: null,
+      pointerFocusX: 0,
+      pointerFocusY: 0,
+      lastBeatT: -10,
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pointermove', (ev) => {
+        const w = window.innerWidth || 1;
+        const h = window.innerHeight || 1;
+        const fx = Math.max(-1, Math.min(1, (ev.clientX / w - 0.5) * 2));
+        const fy = Math.max(-1, Math.min(1, (ev.clientY / h - 0.5) * 2));
+        this._stageBg.pointerFocusX = fx;
+        this._stageBg.pointerFocusY = fy;
+        const dx = fx - (this._stageBg.lastPointerX ?? fx);
+        const dy = fy - (this._stageBg.lastPointerY ?? fy);
+        this._stageBg.motion = Math.min(1, this._stageBg.motion + Math.hypot(dx, dy) * 2.4);
+        this._stageBg.lastPointerX = fx;
+        this._stageBg.lastPointerY = fy;
+      }, { passive: true });
+    }
     ThreeSceneOverlay.init(vw, vh, pr);
     const loop = () => { requestAnimationFrame(loop); this._update(); };
     requestAnimationFrame(loop);
@@ -1536,7 +1567,77 @@ const AudioBackground = {
 
   setFocus(sceneName, x, y) {
     if (!this._ready || this._warpActive) return;
+    this._setStageBackgroundFocus(x, y);
     ThreeSceneOverlay.setFocus(sceneName, x, y);
+  },
+
+  _setStageBackgroundFocus(x, y) {
+    if (!this._stageBg || !Number.isFinite(x) || !Number.isFinite(y)) return;
+    const fx = Math.max(-1, Math.min(1, ((x / GAME_WIDTH) - 0.5) * 2));
+    const fy = Math.max(-1, Math.min(1, ((y / GAME_HEIGHT) - 0.5) * 2));
+
+    if (this._stageBg.lastFocusX !== null) {
+      const dx = fx - this._stageBg.lastFocusX;
+      const dy = fy - this._stageBg.lastFocusY;
+      this._stageBg.motion = Math.min(1, this._stageBg.motion + Math.hypot(dx, dy) * 1.8);
+    }
+
+    this._stageBg.targetFocusX = fx;
+    this._stageBg.targetFocusY = fy;
+    this._stageBg.lastFocusX = fx;
+    this._stageBg.lastFocusY = fy;
+  },
+
+  _updateStageBackground(ar, beatValue) {
+    if (!this._stageBg || typeof document === 'undefined') return;
+
+    const t = this._clock ? this._clock.getElapsedTime() : 0;
+
+    // Idle baseline so the gutters always feel alive even with no BGM /
+    // before AudioReactive is connected.
+    const idleEnergy = 0.35 + Math.sin(t * 1.6) * 0.18;
+    const idleBass = 0.22 + Math.sin(t * 0.9 + 0.6) * 0.18;
+    const idleBeatPhase = (t * 0.55) % 1;
+    const idleBeat = idleBeatPhase < 0.08 ? (1 - idleBeatPhase / 0.08) * 0.55 : 0;
+
+    const connected = ar && ar._connected;
+    const audioEnergy = connected ? ar.energy : 0;
+    const audioBass = connected ? ar.bassSmooth : 0;
+    const audioBeat = beatValue || 0;
+
+    // Always take the louder of (audio, idle) so loud music dominates and
+    // silence still leaves a visible heartbeat.
+    const targetEnergy = Math.max(audioEnergy * 1.4, idleEnergy);
+    const targetBass = Math.max(audioBass * 1.5, idleBass);
+    let targetBeat = Math.max(audioBeat, idleBeat);
+
+    // Real beat from AudioReactive — punch the beat channel hard so the
+    // CSS lamp/edge/halftone all flash at once.
+    if (connected && ar.isBeat && t - this._stageBg.lastBeatT > 0.12) {
+      this._stageBg.lastBeatT = t;
+      this._stageBg.beat = Math.max(this._stageBg.beat, Math.min(1, ar.beatIntensity + 0.4));
+      targetBeat = Math.max(targetBeat, this._stageBg.beat);
+    }
+
+    this._stageBg.energy += (targetEnergy - this._stageBg.energy) * 0.16;
+    this._stageBg.bass += (targetBass - this._stageBg.bass) * 0.18;
+    this._stageBg.beat += (targetBeat - this._stageBg.beat) * 0.32;
+    this._stageBg.beat *= 0.92;
+
+    // Combine player-driven focus with pointer fallback.
+    const fxTarget = (this._stageBg.targetFocusX || 0) * 0.7 + (this._stageBg.pointerFocusX || 0) * 0.3;
+    const fyTarget = (this._stageBg.targetFocusY || 0) * 0.7 + (this._stageBg.pointerFocusY || 0) * 0.3;
+    this._stageBg.focusX += (fxTarget - this._stageBg.focusX) * 0.14;
+    this._stageBg.focusY += (fyTarget - this._stageBg.focusY) * 0.14;
+    this._stageBg.motion *= 0.88;
+
+    const root = document.documentElement;
+    root.style.setProperty('--bg-energy', this._stageBg.energy.toFixed(3));
+    root.style.setProperty('--bg-bass', this._stageBg.bass.toFixed(3));
+    root.style.setProperty('--bg-beat', this._stageBg.beat.toFixed(3));
+    root.style.setProperty('--bg-focus-x', this._stageBg.focusX.toFixed(3));
+    root.style.setProperty('--bg-focus-y', this._stageBg.focusY.toFixed(3));
+    root.style.setProperty('--bg-motion', this._stageBg.motion.toFixed(3));
   },
 
   getAnimationEffectsLevel() {
@@ -1598,6 +1699,7 @@ const AudioBackground = {
       u.beatIntensity.value = Math.min(1.0, ar.beatIntensity);
     }
     u.beatIntensity.value = Math.max(0, u.beatIntensity.value - 0.025);
+    this._updateStageBackground(ar, u.beatIntensity.value);
 
     if (this._warpActive) {
       const elapsed = this._clock.getElapsedTime() - this._warpStart;

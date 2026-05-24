@@ -6,7 +6,7 @@ import BGM from '../core/AudioManager.js';
 import AudioReactive from '../core/AudioReactiveSystem.js';
 import NeonGlow from '../vfx/NeonGlow.js';
 import AudioBackground from '../vfx/AudioBackground.js';
-import { cssColor, getVisualStyle, isModernistStyle, toggleVisualStyle } from '../core/VisualStyle.js';
+import { cssColor, getVisualStyle, getFonts, isModernistStyle, toggleVisualStyle } from '../core/VisualStyle.js';
 
 const cyan = '#00f0ff';
 const magenta = '#ff00e6';
@@ -17,14 +17,16 @@ const SPECTRUM_BARS = 64;
 const SPECTRUM_CX = GAME_WIDTH / 2;
 const SPECTRUM_CY = 210;
 const SPECTRUM_BASE_RADIUS = 45;
-const SPECTRUM_MAX_BAR = 55;
+const SPECTRUM_MAX_BAR = 110;
 const SPECTRUM_BAR_WIDTH = 3;
 const MENU_BUTTONS = [
-  { x: 255, y: 210, label: 'START\nMISSION', theme: 'portal', action: 'story' },
-  { x: 545, y: 210, label: 'DATA PURGE\nSTATUS', theme: 'shards', action: 'arcade' },
-  { x: 255, y: 390, label: 'FIREWALL\nSETTINGS', theme: 'vortex', action: 'levels' },
-  { x: 545, y: 390, label: 'REBOOT', theme: 'burst', action: 'upgrades' },
+  { x: GAME_WIDTH / 2 - 170, y: 196, label: 'START\nMISSION', theme: 'portal', action: 'story' },
+  { x: GAME_WIDTH / 2 + 170, y: 196, label: 'DATA PURGE\nSTATUS', theme: 'shards', action: 'arcade' },
+  { x: GAME_WIDTH / 2 - 170, y: 364, label: 'FIREWALL\nSETTINGS', theme: 'vortex', action: 'levels' },
+  { x: GAME_WIDTH / 2 + 170, y: 364, label: 'REBOOT', theme: 'burst', action: 'upgrades' },
 ];
+const MODERNIST_MENU_PAPER_W = 396;
+const MODERNIST_MENU_TERMINAL_X = MODERNIST_MENU_PAPER_W + 24;
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -57,6 +59,9 @@ export class MenuScene extends Phaser.Scene {
       return;
     }
 
+    this.fonts = this.visualStyle.fonts || getFonts();
+    const f = this.fonts;
+
     const cx = GAME_WIDTH / 2;
 
     this.drawGridBackground();
@@ -71,11 +76,12 @@ export class MenuScene extends Phaser.Scene {
 
     this.titleText = this.add.text(cx, 32, 'SYSTEM ACCESS: CYBER ARCADE', {
       fontSize: '24px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: '#eafdff',
       stroke: '#00111a',
       strokeThickness: 4,
     }).setOrigin(0.5).setDepth(42);
+    this.titleText.setLetterSpacing && this.titleText.setLetterSpacing(3);
     NeonGlow.applyTextGlow(this, this.titleText, COLORS.NEON_MAGENTA);
     this._beatTitleActive = false;
 
@@ -85,9 +91,9 @@ export class MenuScene extends Phaser.Scene {
       duration: 1500, yoyo: true, repeat: -1,
     });
 
-    const subtitle = this.add.text(cx, 58, '[NEON WANDERER] // AETHELGARD FIREWALL ACCESS TERMINAL // [ACTIVE]', {
+    const subtitle = this.add.text(cx, 60, '[NEON WANDERER] // AETHELGARD FIREWALL ACCESS TERMINAL // [ACTIVE]', {
       fontSize: '10px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: '#d8fbff',
       stroke: '#00111a',
       strokeThickness: 2,
@@ -97,7 +103,7 @@ export class MenuScene extends Phaser.Scene {
 
     this.add.text(cx, 78, 'v2.0 // NEON RETRO OVERHAUL', {
       fontSize: '10px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: '#d9c2ff',
       stroke: '#080014',
       strokeThickness: 2,
@@ -117,13 +123,13 @@ export class MenuScene extends Phaser.Scene {
     const hs = GameManager.getHighScore();
     if (hs > 0) {
       this.add.text(cx, 548, `BEST: ${String(hs).padStart(7, '0')}`, {
-        fontSize: '13px', fontFamily: 'monospace', color: '#8b93d1',
+        fontSize: '13px', fontFamily: f.mono, color: '#8b93d1',
       }).setOrigin(0.5).setDepth(10);
     }
 
-    this.add.text(cx, GAME_HEIGHT - 20, 'ARROWS/WASD MOVE | SPACE ACTION | H HACK | N SKIP | ESC PAUSE', {
+    this.add.text(cx, GAME_HEIGHT - 20, 'ARROWS/WASD MOVE  ·  SPACE ACTION  ·  H HACK  ·  N SKIP  ·  ESC PAUSE', {
       fontSize: '10px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: '#c9d7ff',
       stroke: '#030712',
       strokeThickness: 2,
@@ -153,6 +159,7 @@ export class MenuScene extends Phaser.Scene {
   createModernistMenu() {
     const p = this.palette;
     const css = this.visualStyle.css;
+    this.fonts = this.visualStyle.fonts || getFonts();
     this._menuButtons = [];
     this._sigilPulse = 0;
     this._menuFocus = { x: 0, y: 0 };
@@ -167,15 +174,15 @@ export class MenuScene extends Phaser.Scene {
 
     this.drawPosterBackground();
 
-    this.drawAtariMark(34, 42);
-    this.drawWarnerHeader(70, 24);
-    this.drawSystemBlock(28, 78);
-    this.drawYAxis(10, 138, GAME_HEIGHT - 132);
-    this.drawAtariPortalTitle(34, 138);
-    this.drawSubtitleStack(34, 310);
-    this.drawCx4024Plate(232, 314);
-    this.drawShipPlate(220, 360);
-    this.drawJoystickBlock(28, 432);
+    this.drawAtariMark(42, 42);
+    this.drawWarnerHeader(82, 24);
+    this.drawSystemBlock(36, 78);
+    this.drawYAxis(14, 138, GAME_HEIGHT - 120);
+    this.drawAtariPortalTitle(44, 138);
+    this.drawSubtitleStack(44, 310);
+    this.drawCx4024Plate(262, 314);
+    this.drawShipPlate(250, 360);
+    this.drawJoystickBlock(36, 432);
 
     this.drawCoordinateHeader();
     this.drawConstellation();
@@ -183,15 +190,15 @@ export class MenuScene extends Phaser.Scene {
     this._halftoneGfx = this.add.graphics().setDepth(3);
     this._portalGfx = this.add.graphics().setDepth(5);
     this._dataPointsGfx = this.add.graphics().setDepth(6);
-    this._halftoneCenter = { x: 458, y: 286 };
-    this.initHalftoneField(this._halftoneCenter.x, this._halftoneCenter.y, 96);
-    this.initDataPoints(this._halftoneCenter.x, this._halftoneCenter.y, 112);
+    this._halftoneCenter = { x: 552, y: 282 };
+    this.initHalftoneField(this._halftoneCenter.x, this._halftoneCenter.y, 104);
+    this.initDataPoints(this._halftoneCenter.x, this._halftoneCenter.y, 122);
     this.drawHalftoneField(0);
     this.drawPortalRings(this._halftoneCenter.x, this._halftoneCenter.y, 0);
     this.drawDataPoints(0);
 
-    this.drawTerrainGraph(560, 472);
-    this.drawEdgeTicks(GAME_WIDTH - 16, 84, 452);
+    this.drawTerrainGraph(610, 482);
+    this.drawEdgeTicks(GAME_WIDTH - 22, 84, GAME_HEIGHT - 110);
     this.drawPageFurniture();
 
     const buttonDefs = [
@@ -201,15 +208,15 @@ export class MenuScene extends Phaser.Scene {
       { label: 'REBOOT / CODEX', kicker: '04 / UPGRADES',      accent: p.violet,    icon: 'codex',  action: () => this.openUpgradeShop() },
     ];
     buttonDefs.forEach((def, i) => {
-      const y = 200 + i * 56;
-      this._menuButtons.push(this.createPosterButton(688, y, 200, 46, def));
+      const y = 188 + i * 56;
+      this._menuButtons.push(this.createPosterButton(866, y, 252, 48, def));
     });
 
-    this.createStyleSwitchButton(116, GAME_HEIGHT - 42);
+    this.createStyleSwitchButton(128, GAME_HEIGHT - 42);
 
-    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 18, 'ARROWS / WASD MOVE   ·   SPACE ACTION   ·   H HACK   ·   N SKIP   ·   ESC PAUSE', {
-      fontSize: '9px',
-      fontFamily: 'monospace',
+    this.add.text(GAME_WIDTH / 2 + 86, GAME_HEIGHT - 18, 'ARROWS/WASD MOVE · SPACE ACTION · H HACK · N SKIP · ESC PAUSE', {
+      fontSize: '8px',
+      fontFamily: this.fonts.mono,
       color: css.muted,
     }).setOrigin(0.5).setDepth(80);
 
@@ -222,65 +229,67 @@ export class MenuScene extends Phaser.Scene {
   drawPosterBackground() {
     const p = this.palette;
     const g = this.add.graphics().setDepth(0);
+    const paperW = MODERNIST_MENU_PAPER_W;
+    const terminalX = MODERNIST_MENU_TERMINAL_X;
 
     g.fillStyle(p.terminal, 1);
     g.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     g.fillStyle(p.paper, 1);
-    g.fillRect(0, 0, 342, GAME_HEIGHT);
+    g.fillRect(0, 0, paperW, GAME_HEIGHT);
 
     g.fillStyle(p.paperDark, 0.55);
     for (let i = 0; i < 240; i++) {
-      const x = 4 + (i * 47) % 334;
+      const x = 4 + (i * 47) % (paperW - 8);
       const y = 6 + Math.floor(i * 31) % (GAME_HEIGHT - 12);
       g.fillRect(x, y, 1, 1);
     }
     g.fillStyle(p.ink, 0.07);
     for (let i = 0; i < 110; i++) {
-      const x = 4 + (i * 61) % 334;
+      const x = 4 + (i * 61) % (paperW - 8);
       const y = 6 + Math.floor(i * 23) % (GAME_HEIGHT - 12);
       g.fillRect(x, y, 1, 1);
     }
 
     g.lineStyle(1, p.faint, 0.36);
-    for (let x = 360; x < GAME_WIDTH - 6; x += 16) g.lineBetween(x, 78, x, GAME_HEIGHT - 60);
-    for (let y = 80; y < GAME_HEIGHT - 60; y += 16) g.lineBetween(360, y, GAME_WIDTH - 8, y);
+    for (let x = terminalX; x < GAME_WIDTH - 6; x += 16) g.lineBetween(x, 78, x, GAME_HEIGHT - 60);
+    for (let y = 80; y < GAME_HEIGHT - 60; y += 16) g.lineBetween(terminalX, y, GAME_WIDTH - 8, y);
 
     g.fillStyle(p.faint, 0.55);
-    for (let x = 360; x < GAME_WIDTH - 6; x += 8) {
+    for (let x = terminalX; x < GAME_WIDTH - 6; x += 8) {
       for (let y = 80; y < GAME_HEIGHT - 60; y += 8) {
         if (((x / 8) + (y / 8)) % 3 === 0) g.fillRect(x, y, 1, 1);
       }
     }
 
     g.fillStyle(p.vermilion, 1);
-    g.fillRect(342, 0, 2, GAME_HEIGHT);
+    g.fillRect(paperW, 0, 2, GAME_HEIGHT);
     g.lineStyle(1, p.paper, 0.35);
-    g.lineBetween(346, 0, 346, GAME_HEIGHT);
+    g.lineBetween(paperW + 4, 0, paperW + 4, GAME_HEIGHT);
 
     g.lineStyle(1, p.paper, 0.32);
-    g.strokeRect(354, 22, GAME_WIDTH - 362, GAME_HEIGHT - 44);
+    g.strokeRect(terminalX - 6, 22, GAME_WIDTH - terminalX - 2, GAME_HEIGHT - 44);
     g.lineStyle(1, p.paper, 0.18);
-    g.strokeRect(358, 26, GAME_WIDTH - 370, GAME_HEIGHT - 52);
+    g.strokeRect(terminalX - 2, 26, GAME_WIDTH - terminalX - 10, GAME_HEIGHT - 52);
   }
 
   // ─── Left poster panel ────────────────────────────────────────
 
   drawWarnerHeader(x, y) {
     const css = this.visualStyle.css;
+    const f = this.fonts;
     this.add.text(x, y, 'ATARI', {
-      fontSize: '13px',
-      fontFamily: 'monospace',
+      fontSize: '15px',
+      fontFamily: f.display,
       color: css.ink,
-      fontStyle: 'bold',
     }).setDepth(22);
-    this.add.text(x, y + 16, 'A Warner Communications Co.', {
+    this.add.text(x, y + 18, 'A Warner Communications Co.', {
       fontSize: '7px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: css.ink,
     }).setAlpha(0.74).setDepth(22);
-    this.add.text(x, y + 26, '1972', {
+    this.add.text(x, y + 28, '1972', {
       fontSize: '7px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: css.ink,
       fontStyle: 'bold',
     }).setAlpha(0.88).setDepth(22);
@@ -315,17 +324,18 @@ export class MenuScene extends Phaser.Scene {
 
   drawSystemBlock(x, y) {
     const css = this.visualStyle.css;
+    const f = this.fonts;
     const lines = ['> SYSTEM 400', '> 32K RAM', '> ATARI OS 1.0'];
     lines.forEach((line, i) => {
       this.add.text(x, y + i * 11, line, {
         fontSize: '9px',
-        fontFamily: 'monospace',
+        fontFamily: f.mono,
         color: css.ink,
       }).setDepth(22);
     });
     this._readyLine = this.add.text(x, y + lines.length * 11, '> READY._', {
       fontSize: '9px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: css.ink,
       fontStyle: 'bold',
     }).setDepth(22);
@@ -361,14 +371,14 @@ export class MenuScene extends Phaser.Scene {
       g.lineBetween(x + 18, ny, x + 18 + (major ? 6 : 3), ny);
       this.add.text(x + 16, ny - 3, String(num), {
         fontSize: '6px',
-        fontFamily: 'monospace',
+        fontFamily: this.fonts.mono,
         color: major ? css.vermilion : css.muted,
       }).setOrigin(1, 0).setDepth(21);
     });
 
     this.add.text(x + 16, top - 12, 'Y', {
-      fontSize: '8px',
-      fontFamily: 'monospace',
+      fontSize: '9px',
+      fontFamily: this.fonts.ui,
       color: css.ink,
       fontStyle: 'bold',
     }).setOrigin(1, 0).setDepth(21);
@@ -377,8 +387,13 @@ export class MenuScene extends Phaser.Scene {
   drawAtariPortalTitle(startX, startY) {
     const p = this.palette;
     const css = this.visualStyle.css;
-    const letterW = 42;
-    const lineH = 70;
+    // Albatross is a bold display face — much wider than monospace. We have a
+    // ~340px usable strip inside the wider 16:9 paper panel and need to fit
+    // 6 letters of PORTAL. 50px font + 50px tracking keeps PORTAL at 300px
+    // with breathing room and clean vertical rhythm.
+    const fontPx = 50;
+    const letterW = 50;
+    const lineH = 60;
 
     const rows = [
       {
@@ -398,31 +413,30 @@ export class MenuScene extends Phaser.Scene {
       [...row.letters].forEach((ch, i) => {
         const lx = startX + i * letterW;
         const txt = this.add.text(lx, y, ch, {
-          fontSize: '60px',
-          fontFamily: 'monospace',
+          fontSize: `${fontPx}px`,
+          fontFamily: this.fonts.display,
           color: row.colors[i],
-          fontStyle: 'bold',
         }).setOrigin(0, 0).setDepth(22);
 
         const inset = row.insets[i];
         if (inset) {
           const ig = this.add.graphics().setDepth(24);
-          const ix = lx + letterW / 2 - 4;
-          const iy = y + 28;
+          const ix = lx + letterW / 2 - 2;
+          const iy = y + fontPx * 0.5;
           if (inset === 'circle') {
             ig.fillStyle(p.paper, 1);
-            ig.fillCircle(ix, iy, 6);
+            ig.fillCircle(ix, iy, 5);
             ig.fillStyle(p.terminal, 1);
-            ig.fillCircle(ix, iy, 3);
+            ig.fillCircle(ix, iy, 2.4);
           } else if (inset === 'triangle') {
             ig.fillStyle(p.paper, 1);
-            ig.fillTriangle(ix - 6, iy + 5, ix + 6, iy + 5, ix, iy - 6);
+            ig.fillTriangle(ix - 5, iy + 4, ix + 5, iy + 4, ix, iy - 5);
           } else if (inset === 'quarter') {
             ig.fillStyle(p.paper, 1);
             ig.beginPath();
             ig.moveTo(ix, iy);
-            ig.lineTo(ix + 7, iy);
-            ig.arc(ix, iy, 7, 0, Math.PI / 2, false);
+            ig.lineTo(ix + 6, iy);
+            ig.arc(ix, iy, 6, 0, Math.PI / 2, false);
             ig.lineTo(ix, iy);
             ig.closePath();
             ig.fillPath();
@@ -436,19 +450,20 @@ export class MenuScene extends Phaser.Scene {
 
   drawSubtitleStack(x, y) {
     const css = this.visualStyle.css;
+    const f = this.fonts;
     this.add.text(x, y, 'COMPUTER', {
-      fontSize: '9px',
-      fontFamily: 'monospace',
+      fontSize: '10px',
+      fontFamily: f.ui,
       color: css.ink,
     }).setAlpha(0.78).setDepth(22);
-    this.add.text(x, y + 11, 'SPACE RACE', {
-      fontSize: '9px',
-      fontFamily: 'monospace',
+    this.add.text(x, y + 12, 'SPACE RACE', {
+      fontSize: '10px',
+      fontFamily: f.ui,
       color: css.ink,
     }).setAlpha(0.78).setDepth(22);
-    this.add.text(x, y + 22, 'GAME PROGRAM', {
-      fontSize: '9px',
-      fontFamily: 'monospace',
+    this.add.text(x, y + 24, 'GAME PROGRAM', {
+      fontSize: '11px',
+      fontFamily: f.ui,
       color: css.ink,
       fontStyle: 'bold',
     }).setDepth(22);
@@ -457,10 +472,9 @@ export class MenuScene extends Phaser.Scene {
   drawCx4024Plate(x, y) {
     const css = this.visualStyle.css;
     this.add.text(x, y, 'CX4024', {
-      fontSize: '12px',
-      fontFamily: 'monospace',
+      fontSize: '14px',
+      fontFamily: this.fonts.display,
       color: css.vermilion,
-      fontStyle: 'bold',
     }).setDepth(22);
   }
 
@@ -502,55 +516,58 @@ export class MenuScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(20);
 
     g.lineStyle(1, p.ink, 0.85);
-    g.lineBetween(x, y, x + 192, y);
+    g.lineBetween(x, y, x + 210, y);
 
     this.add.text(x, y + 6, 'USE WITH', {
       fontSize: '7px',
-      fontFamily: 'monospace',
+      fontFamily: this.fonts.ui,
       color: css.ink,
     }).setAlpha(0.78).setDepth(22);
     this.add.text(x, y + 16, 'JOYSTICK CONTROLLERS', {
       fontSize: '8px',
-      fontFamily: 'monospace',
+      fontFamily: this.fonts.ui,
       color: css.ink,
       fontStyle: 'bold',
     }).setDepth(22);
 
-    const jx = x + 24;
+    const jx = x + 20;
     const jy = y + 56;
     g.fillStyle(p.ink, 1);
-    g.fillRoundedRect(jx - 18, jy + 6, 36, 18, 3);
-    g.fillRect(jx - 14, jy + 4, 28, 4);
+    g.fillRoundedRect(jx - 16, jy + 6, 32, 16, 3);
+    g.fillRect(jx - 12, jy + 4, 24, 4);
     g.fillRect(jx - 2.5, jy - 18, 5, 24);
     g.fillStyle(p.vermilion, 1);
-    g.fillCircle(jx, jy - 18, 5);
+    g.fillCircle(jx, jy - 18, 4.5);
     g.fillStyle(p.paper, 1);
-    g.fillCircle(jx, jy - 18, 1.6);
+    g.fillCircle(jx, jy - 18, 1.4);
 
-    this.add.text(jx + 28, jy - 16, 'CX40', {
+    this.add.text(jx + 24, jy - 18, 'CX40', {
       fontSize: '7px',
-      fontFamily: 'monospace',
+      fontFamily: this.fonts.ui,
       color: css.ink,
+      fontStyle: 'bold',
     }).setDepth(22);
-    this.add.text(jx + 28, jy - 7, 'JOYSTICK', {
+    this.add.text(jx + 24, jy - 9, 'JOYSTICK', {
       fontSize: '6px',
-      fontFamily: 'monospace',
+      fontFamily: this.fonts.mono,
       color: css.muted,
     }).setDepth(22);
 
-    this.drawSwatches(x + 96, y + 56);
+    this.drawSwatches(x + 108, y + 56);
   }
 
   drawSwatches(x, y) {
     const p = this.palette;
     const g = this.add.graphics().setDepth(20);
     const colors = [p.vermilion, p.mustard, p.blue, p.ink];
+    const swSize = 16;
+    const swGap = 4;
     colors.forEach((color, i) => {
-      const sx = x + i * 22;
+      const sx = x + i * (swSize + swGap);
       g.fillStyle(color, 1);
-      g.fillRect(sx, y, 18, 18);
+      g.fillRect(sx, y, swSize, swSize);
       g.lineStyle(1, p.ink, 0.35);
-      g.strokeRect(sx, y, 18, 18);
+      g.strokeRect(sx, y, swSize, swSize);
     });
   }
 
@@ -558,31 +575,32 @@ export class MenuScene extends Phaser.Scene {
 
   drawCoordinateHeader() {
     const css = this.visualStyle.css;
-    this.add.text(360, 26, '> SECTOR 7G / QUADRANT B', {
+    const f = this.fonts;
+    const x = MODERNIST_MENU_TERMINAL_X;
+    this.add.text(x, 26, '> SECTOR 7G / QUADRANT B', {
       fontSize: '9px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: css.muted,
     }).setDepth(22);
-    this.add.text(360, 38, '> 12.4 N    45.7 E', {
+    this.add.text(x, 38, '> 12.4 N    45.7 E', {
       fontSize: '9px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: css.muted,
     }).setDepth(22);
-    this.add.text(360, 54, '> INTERFACE  AP-IF / 01.0', {
+    this.add.text(x, 54, '> INTERFACE  AP-IF / 01.0', {
       fontSize: '8px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: css.cyan,
     }).setAlpha(0.7).setDepth(22);
 
-    this.add.text(GAME_WIDTH - 40, 24, '72', {
-      fontSize: '20px',
-      fontFamily: 'monospace',
+    this.add.text(GAME_WIDTH - 48, 24, '72', {
+      fontSize: '24px',
+      fontFamily: f.display,
       color: css.vermilion,
-      fontStyle: 'bold',
     }).setOrigin(0.5, 0).setDepth(22);
-    this.add.text(GAME_WIDTH - 40, 46, 'NODE', {
-      fontSize: '6px',
-      fontFamily: 'monospace',
+    this.add.text(GAME_WIDTH - 48, 50, 'NODE', {
+      fontSize: '7px',
+      fontFamily: f.ui,
       color: css.muted,
     }).setOrigin(0.5, 0).setDepth(22);
   }
@@ -591,9 +609,9 @@ export class MenuScene extends Phaser.Scene {
     const css = this.visualStyle.css;
     this._constellationGfx = this.add.graphics().setDepth(4);
 
-    const baseX = 600;
+    const baseX = GAME_WIDTH - 330;
     const baseY = 80;
-    const w = 160;
+    const w = 250;
     const h = 88;
 
     const rand = (s) => {
@@ -615,8 +633,8 @@ export class MenuScene extends Phaser.Scene {
     }
 
     this.add.text(baseX, baseY - 12, 'NEB-04 / STAR-CHART', {
-      fontSize: '7px',
-      fontFamily: 'monospace',
+      fontSize: '8px',
+      fontFamily: this.fonts.mono,
       color: css.muted,
     }).setDepth(20);
 
@@ -774,15 +792,14 @@ export class MenuScene extends Phaser.Scene {
     const hs = GameManager.getHighScore() || 12580;
 
     this.add.text(x, y - 14, 'HIGH SCORE', {
-      fontSize: '8px',
-      fontFamily: 'monospace',
+      fontSize: '9px',
+      fontFamily: this.fonts.ui,
       color: css.muted,
     }).setDepth(22);
-    this.add.text(x + 78, y - 16, String(hs).padStart(6, '0'), {
-      fontSize: '12px',
-      fontFamily: 'monospace',
+    this.add.text(x + 78, y - 18, String(hs).padStart(6, '0'), {
+      fontSize: '15px',
+      fontFamily: this.fonts.display,
       color: css.cyan,
-      fontStyle: 'bold',
     }).setDepth(22);
 
     const segments = 22;
@@ -842,21 +859,22 @@ export class MenuScene extends Phaser.Scene {
     g.lineStyle(1, p.vermilion, 0.5);
     g.strokeCircle(13, 12, 4);
 
+    const f = this.fonts;
     this.add.text(GAME_WIDTH - 12, 12, 'PAGE 01 / 01', {
-      fontSize: '7px',
-      fontFamily: 'monospace',
+      fontSize: '8px',
+      fontFamily: f.mono,
       color: css.muted,
     }).setOrigin(1, 0).setDepth(80);
 
-    this.add.text(286, GAME_HEIGHT - 16, 'CONFIDENTIAL', {
-      fontSize: '6px',
-      fontFamily: 'monospace',
+    this.add.text(MODERNIST_MENU_PAPER_W - 56, GAME_HEIGHT - 16, 'CONFIDENTIAL', {
+      fontSize: '7px',
+      fontFamily: f.ui,
       color: css.muted,
     }).setOrigin(1, 0).setDepth(22);
 
     this.add.text(GAME_WIDTH - 12, GAME_HEIGHT - 30, 'AP-IF-1982-0424', {
-      fontSize: '7px',
-      fontFamily: 'monospace',
+      fontSize: '8px',
+      fontFamily: f.mono,
       color: css.muted,
     }).setOrigin(1, 0).setDepth(80);
   }
@@ -874,15 +892,15 @@ export class MenuScene extends Phaser.Scene {
     const arrowGfx = this.add.graphics().setDepth(31);
     const zone = this.add.zone(x, y, w, h).setOrigin(0.5).setDepth(34).setInteractive({ useHandCursor: true });
 
-    const labelText = this.add.text(x - w / 2 + stripBaseW + 12, y - 10, def.label, {
-      fontSize: '15px',
-      fontFamily: 'monospace',
+    const f = this.fonts;
+    const labelText = this.add.text(x - w / 2 + stripBaseW + 12, y - 11, def.label, {
+      fontSize: '14px',
+      fontFamily: f.display,
       color: css.ink,
-      fontStyle: 'bold',
     }).setDepth(30);
-    const kickerText = this.add.text(x - w / 2 + stripBaseW + 12, y + 9, def.kicker, {
+    const kickerText = this.add.text(x - w / 2 + stripBaseW + 12, y + 8, def.kicker, {
       fontSize: '8px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: css.muted,
     }).setDepth(30);
 
@@ -975,13 +993,16 @@ export class MenuScene extends Phaser.Scene {
     const p = style.palette;
     const css = style.css;
     const modernist = style.id === 'modernist';
-    const w = modernist ? 190 : 206;
+    const w = modernist ? 224 : 206;
     const h = 30;
+    const stripW = 18;
     const g = this.add.graphics().setDepth(80);
     const zone = this.add.zone(x, y, w, h).setOrigin(0.5).setDepth(82).setInteractive({ useHandCursor: true });
-    const label = this.add.text(x, y, `STYLE: ${style.shortLabel}  [SWITCH]`, {
-      fontSize: modernist ? '9px' : '10px',
-      fontFamily: 'monospace',
+    const f = style.fonts || getFonts();
+    const labelX = modernist ? x + stripW / 2 : x;
+    const label = this.add.text(labelX, y, `STYLE: ${style.shortLabel}  [SWITCH]`, {
+      fontSize: modernist ? '10px' : '10px',
+      fontFamily: modernist ? f.ui : f.mono,
       color: modernist ? css.ink : '#ffffff',
     }).setOrigin(0.5).setDepth(81);
 
@@ -1027,52 +1048,53 @@ export class MenuScene extends Phaser.Scene {
     const cx = GAME_WIDTH / 2;
 
     g.fillStyle(0x030613, 0.58);
-    g.fillTriangle(cx - 330, 500, cx + 330, 500, cx + 245, 98);
-    g.fillTriangle(cx - 330, 500, cx - 245, 98, cx + 245, 98);
+    g.fillTriangle(cx - 405, GAME_HEIGHT - 56, cx + 405, GAME_HEIGHT - 56, cx + 310, 98);
+    g.fillTriangle(cx - 405, GAME_HEIGHT - 56, cx - 310, 98, cx + 310, 98);
 
     g.lineStyle(9, COLORS.NEON_CYAN, 0.035);
-    g.strokeTriangle(cx - 330, 500, cx + 330, 500, cx + 245, 98);
-    g.strokeTriangle(cx - 330, 500, cx - 245, 98, cx + 245, 98);
+    g.strokeTriangle(cx - 405, GAME_HEIGHT - 56, cx + 405, GAME_HEIGHT - 56, cx + 310, 98);
+    g.strokeTriangle(cx - 405, GAME_HEIGHT - 56, cx - 310, 98, cx + 310, 98);
 
     for (let i = 0; i < 9; i++) {
       const t = i / 8;
-      const y = Phaser.Math.Linear(112, 492, t);
-      const half = Phaser.Math.Linear(245, 330, t);
+      const y = Phaser.Math.Linear(112, GAME_HEIGHT - 64, t);
+      const half = Phaser.Math.Linear(310, 405, t);
       g.lineStyle(1, COLORS.NEON_CYAN, 0.08 + t * 0.04);
       g.lineBetween(cx - half, y, cx + half, y);
     }
 
     for (let i = -5; i <= 5; i++) {
-      const topX = cx + i * 48;
-      const bottomX = cx + i * 66;
+      const topX = cx + i * 62;
+      const bottomX = cx + i * 81;
       g.lineStyle(1, i === 0 ? COLORS.NEON_MAGENTA : COLORS.NEON_CYAN, i === 0 ? 0.12 : 0.06);
-      g.lineBetween(topX, 108, bottomX, 496);
+      g.lineBetween(topX, 108, bottomX, GAME_HEIGHT - 60);
     }
 
     const leftFin = this.add.graphics().setDepth(5);
     leftFin.fillStyle(0x06101f, 0.72);
-    leftFin.fillTriangle(82, 170, 190, 130, 142, 470);
+    leftFin.fillTriangle(92, 170, 220, 130, 158, GAME_HEIGHT - 86);
     leftFin.lineStyle(2, COLORS.NEON_PURPLE, 0.32);
-    leftFin.strokeTriangle(82, 170, 190, 130, 142, 470);
+    leftFin.strokeTriangle(92, 170, 220, 130, 158, GAME_HEIGHT - 86);
 
     const rightFin = this.add.graphics().setDepth(5);
     rightFin.fillStyle(0x06101f, 0.72);
-    rightFin.fillTriangle(GAME_WIDTH - 82, 170, GAME_WIDTH - 190, 130, GAME_WIDTH - 142, 470);
+    rightFin.fillTriangle(GAME_WIDTH - 92, 170, GAME_WIDTH - 220, 130, GAME_WIDTH - 158, GAME_HEIGHT - 86);
     rightFin.lineStyle(2, COLORS.NEON_PURPLE, 0.32);
-    rightFin.strokeTriangle(GAME_WIDTH - 82, 170, GAME_WIDTH - 190, 130, GAME_WIDTH - 142, 470);
+    rightFin.strokeTriangle(GAME_WIDTH - 92, 170, GAME_WIDTH - 220, 130, GAME_WIDTH - 158, GAME_HEIGHT - 86);
   }
 
   drawReadabilityPanels() {
     const g = this.add.graphics().setDepth(39);
+    const cx = GAME_WIDTH / 2;
     g.fillStyle(0x020612, 0.78);
-    g.fillRoundedRect(122, 18, 556, 72, 10);
+    g.fillRoundedRect(cx - 330, 18, 660, 72, 10);
     g.lineStyle(1, COLORS.NEON_CYAN, 0.28);
-    g.strokeRoundedRect(122, 18, 556, 72, 10);
+    g.strokeRoundedRect(cx - 330, 18, 660, 72, 10);
 
     g.fillStyle(0x020612, 0.7);
-    g.fillRoundedRect(110, GAME_HEIGHT - 36, 580, 26, 8);
+    g.fillRoundedRect(cx - 345, GAME_HEIGHT - 36, 690, 26, 8);
     g.lineStyle(1, COLORS.NEON_PURPLE, 0.24);
-    g.strokeRoundedRect(110, GAME_HEIGHT - 36, 580, 26, 8);
+    g.strokeRoundedRect(cx - 345, GAME_HEIGHT - 36, 690, 26, 8);
   }
 
   // ─── Audio-reactive update loop ───────────────────────────────
@@ -1176,6 +1198,10 @@ export class MenuScene extends Phaser.Scene {
   updateMenuPerspective() {
     const canvas = this.game?.canvas;
     if (!canvas) return;
+    if (this.modernist) {
+      this.resetMenuPerspective();
+      return;
+    }
     const fx = Phaser.Math.Clamp(((this._menuFocus.x / GAME_WIDTH) - 0.5) * 2, -1, 1);
     const fy = Phaser.Math.Clamp(((this._menuFocus.y / GAME_HEIGHT) - 0.5) * 2, -1, 1);
     const depth = (Math.abs(fx) + Math.abs(fy)) * 12;
@@ -1248,7 +1274,7 @@ export class MenuScene extends Phaser.Scene {
     const freqData = ar._freqData;
     const binCount = freqData.length;
     const binsPerBar = Math.max(1, Math.floor(binCount / SPECTRUM_BARS));
-    const radius = SPECTRUM_BASE_RADIUS + ar.bassSmooth * 14;
+    const radius = SPECTRUM_BASE_RADIUS + ar.bassSmooth * 26;
 
     this._drawRingGlow(radius, 0.15 + ar.energy * 0.5);
 
@@ -1368,12 +1394,13 @@ export class MenuScene extends Phaser.Scene {
 
   drawDataStreams() {
     const chars = '0100110101101';
+    const fonts = this.fonts || getFonts();
     for (let col = 0; col < 8; col++) {
       const x = 16 + col * ((GAME_WIDTH - 32) / 7) + Math.random() * 18;
       for (let i = 0; i < 14; i++) {
         const ch = chars[Math.floor(Math.random() * chars.length)];
         const txt = this.add.text(x, -10 - i * 16, ch, {
-          fontSize: '11px', fontFamily: 'monospace', color: green,
+          fontSize: '11px', fontFamily: fonts.mono, color: green,
         }).setAlpha(0.14).setDepth(0);
         this.tweens.add({
           targets: txt,
@@ -1392,6 +1419,7 @@ export class MenuScene extends Phaser.Scene {
       { x: 78, y: 72 }, { x: 722, y: 72 },
       { x: 78, y: 508 }, { x: 722, y: 508 },
     ];
+    const fonts = this.fonts || getFonts();
     panels.forEach(({ x, y }) => {
       const frame = this.add.graphics().setDepth(6);
       frame.fillStyle(0x090d16, 0.88);
@@ -1402,7 +1430,7 @@ export class MenuScene extends Phaser.Scene {
       frame.strokeRoundedRect(x - 60, y - 54, 120, 108, 4);
       for (let row = 0; row < 11; row++) {
         const text = this.add.text(x - 48, y - 42 + row * 8, `${Math.random() > 0.5 ? '1' : '0'}${String(Math.floor(Math.random() * 999999999)).padStart(9, '0')}`, {
-          fontSize: '7px', fontFamily: 'monospace', color: '#a2acb9',
+          fontSize: '7px', fontFamily: fonts.mono, color: '#a2acb9',
         }).setAlpha(0.6).setDepth(7);
         this.tweens.add({
           targets: text,
@@ -1483,15 +1511,17 @@ export class MenuScene extends Phaser.Scene {
     const effect = this.add.graphics().setDepth(20);
     const panel = this.add.graphics().setDepth(21);
     const zone = this.add.zone(x, y, width, height).setOrigin(0.5).setDepth(34).setInteractive({ useHandCursor: true });
+    const fonts = this.fonts || getFonts();
     const txt = this.add.text(x, y, label, {
-      fontSize: label.includes('\n') ? '26px' : '28px',
-      fontFamily: 'monospace',
+      fontSize: label.includes('\n') ? '20px' : '24px',
+      fontFamily: fonts.mono,
       align: 'center',
       color: '#ffffff',
       stroke: '#030712',
       strokeThickness: 5,
-      lineSpacing: -6,
+      lineSpacing: 2,
     }).setOrigin(0.5).setDepth(33);
+    txt.setLetterSpacing && txt.setLetterSpacing(2);
 
     const drawPanel = (hover = false) => {
       shadow.clear();
@@ -1612,8 +1642,9 @@ export class MenuScene extends Phaser.Scene {
     NeonGlow.strokeRect(borderG, cx - 170, topY, 340, panelH, COLORS.NEON_CYAN, 1, 0.4);
     this.levelSelectItems.push(shadow, glow, bg, borderG);
 
+    const fLS = getFonts();
     const header = this.add.text(cx, topY + 14, '// LEVEL SELECT', {
-      fontSize: '13px', fontFamily: 'monospace', color: cyan,
+      fontSize: '14px', fontFamily: fLS.display, color: cyan,
     }).setOrigin(0.5).setDepth(101);
     this.levelSelectItems.push(header);
 
@@ -1621,7 +1652,7 @@ export class MenuScene extends Phaser.Scene {
       const name = GAME_NAMES[sceneKey];
       const y = topY + 40 + i * 30;
       const txt = this.add.text(cx, y, `${i + 1}. ${name}`, {
-        fontSize: '13px', fontFamily: 'monospace', color: '#7777aa',
+        fontSize: '13px', fontFamily: fLS.ui, color: '#7777aa',
       }).setOrigin(0.5).setDepth(101).setInteractive({ useHandCursor: true });
 
       txt.on('pointerover', () => { txt.setColor(cyan); SFX.menuSelect(); });
@@ -1631,7 +1662,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     const closeBtn = this.add.text(cx, topY + panelH - 16, '> CLOSE', {
-      fontSize: '12px', fontFamily: 'monospace', color: '#ff1744',
+      fontSize: '12px', fontFamily: fLS.mono, color: '#ff1744',
     }).setOrigin(0.5).setDepth(101).setInteractive({ useHandCursor: true });
     closeBtn.on('pointerdown', () => {
       this.levelSelectItems.forEach(item => item.destroy());
@@ -1659,14 +1690,15 @@ export class MenuScene extends Phaser.Scene {
     NeonGlow.strokeRect(borderG, cx - 250, 185, 500, 330, COLORS.NEON_PURPLE, 1, 0.5);
     this.shopItems.push(shadow, glow, bg, borderG);
 
+    const fSh = getFonts();
     const title = this.add.text(cx, 200, '// REBOOT CONTROL', {
-      fontSize: '14px', fontFamily: 'monospace', color: '#b845ff',
+      fontSize: '16px', fontFamily: fSh.display, color: '#b845ff',
     }).setOrigin(0.5).setDepth(101);
     this.shopItems.push(title);
 
     const permCoins = GameManager.getPermanentCoins();
-    const coinLabel = this.add.text(cx, 224, `CREDITS: ${permCoins}`, {
-      fontSize: '12px', fontFamily: 'monospace', color: '#ffd700',
+    const coinLabel = this.add.text(cx, 226, `CREDITS: ${permCoins}`, {
+      fontSize: '12px', fontFamily: fSh.ui, color: '#ffd700',
     }).setOrigin(0.5).setDepth(101);
     this.shopItems.push(coinLabel);
 
@@ -1685,13 +1717,13 @@ export class MenuScene extends Phaser.Scene {
       const color = maxed ? '#333355' : (canAfford ? '#39ff14' : '#555577');
 
       const label = this.add.text(cx - 180, y, `${up.name} [${up.current}/${up.max}]`, {
-        fontSize: '12px', fontFamily: 'monospace', color: color,
+        fontSize: '12px', fontFamily: fSh.ui, color: color,
       }).setDepth(101);
       this.shopItems.push(label);
 
       if (!maxed) {
         const btn = this.add.text(cx + 140, y, `[${up.cost} CR]`, {
-          fontSize: '12px', fontFamily: 'monospace', color: canAfford ? '#39ff14' : '#444',
+          fontSize: '12px', fontFamily: fSh.mono, color: canAfford ? '#39ff14' : '#444',
         }).setOrigin(0.5, 0).setDepth(101).setInteractive({ useHandCursor: canAfford });
 
         if (canAfford) {
@@ -1712,14 +1744,14 @@ export class MenuScene extends Phaser.Scene {
     });
 
     const achTitle = this.add.text(cx, 398, '// CODEX', {
-      fontSize: '11px', fontFamily: 'monospace', color: '#00f0ff',
+      fontSize: '13px', fontFamily: fSh.display, color: '#00f0ff',
     }).setOrigin(0.5).setDepth(101);
     this.shopItems.push(achTitle);
 
     const achSys = GameManager.achievementSystem;
     if (achSys) {
       const achText = this.add.text(cx, 416, `${achSys.totalUnlocked}/${achSys.totalAchievements} UNLOCKED`, {
-        fontSize: '10px', fontFamily: 'monospace', color: '#555577',
+        fontSize: '10px', fontFamily: fSh.mono, color: '#555577',
       }).setOrigin(0.5).setDepth(101);
       this.shopItems.push(achText);
     }
@@ -1728,12 +1760,12 @@ export class MenuScene extends Phaser.Scene {
     const effectsLevel = AudioBackground.getAnimationEffectsLevel();
     const highEffects = effectsLevel === 'high';
     const effectsLabel = this.add.text(cx - 180, 438, `ANIMATION EFFECTS: ${effectsLevel.toUpperCase()}`, {
-      fontSize: '11px', fontFamily: 'monospace', color: highEffects ? '#39ff14' : '#7777aa',
+      fontSize: '11px', fontFamily: fSh.ui, color: highEffects ? '#39ff14' : '#7777aa',
     }).setDepth(101);
     this.shopItems.push(effectsLabel);
 
     const effectsBtn = this.add.text(cx + 148, 438, `[SET ${highEffects ? 'LOW' : 'HIGH'}]`, {
-      fontSize: '11px', fontFamily: 'monospace', color: '#00f0ff',
+      fontSize: '11px', fontFamily: fSh.mono, color: '#00f0ff',
     }).setOrigin(0.5, 0).setDepth(101).setInteractive({ useHandCursor: true });
     effectsBtn.on('pointerover', () => effectsBtn.setColor('#ffffff'));
     effectsBtn.on('pointerout', () => effectsBtn.setColor('#00f0ff'));
@@ -1749,12 +1781,12 @@ export class MenuScene extends Phaser.Scene {
 
     const fpsText = perfFps === null ? 'PERF FPS: PENDING' : `PERF FPS: ${Math.round(perfFps)}`;
     const fpsLabel = this.add.text(cx, 462, fpsText, {
-      fontSize: '9px', fontFamily: 'monospace', color: '#555577',
+      fontSize: '9px', fontFamily: fSh.mono, color: '#555577',
     }).setOrigin(0.5).setDepth(101);
     this.shopItems.push(fpsLabel);
 
     const closeBtn = this.add.text(cx, 492, '> CLOSE', {
-      fontSize: '12px', fontFamily: 'monospace', color: '#ff1744',
+      fontSize: '12px', fontFamily: fSh.mono, color: '#ff1744',
     }).setOrigin(0.5).setDepth(101).setInteractive({ useHandCursor: true });
     closeBtn.on('pointerdown', () => {
       this.shopItems.forEach(item => item.destroy());

@@ -1,5 +1,5 @@
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../config.js';
-import { isModernistStyle, getVisualStyle } from '../core/VisualStyle.js';
+import { isModernistStyle, getVisualStyle, getFonts } from '../core/VisualStyle.js';
 
 const GlitchEffect = {
   screenTear(scene, duration = 500) {
@@ -121,7 +121,7 @@ const GlitchEffect = {
         const ch = chars[Math.floor(Math.random() * chars.length)];
         const alpha = 1 - (i / length) * 0.7;
         const txt = scene.add.text(col, -20 - i * 16, ch, {
-          fontSize: '14px', fontFamily: 'monospace',
+          fontSize: '14px', fontFamily: getFonts().mono,
           color: '#' + color.toString(16).padStart(6, '0'),
         }).setAlpha(alpha * 0.7).setDepth(8003);
 

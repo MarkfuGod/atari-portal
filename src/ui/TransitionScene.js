@@ -4,7 +4,7 @@ import { GameManager } from '../core/GameManager.js';
 import SFX from '../core/SFXManager.js';
 import NeonGlow from '../vfx/NeonGlow.js';
 import AudioBackground from '../vfx/AudioBackground.js';
-import { getVisualStyle, isModernistStyle } from '../core/VisualStyle.js';
+import { getVisualStyle, isModernistStyle, getFonts } from '../core/VisualStyle.js';
 
 export class TransitionScene extends Phaser.Scene {
   constructor() {
@@ -15,6 +15,7 @@ export class TransitionScene extends Phaser.Scene {
     this.visualStyle = getVisualStyle();
     this.palette = this.visualStyle.palette;
     this.modernist = isModernistStyle();
+    this.fonts = this.visualStyle.fonts || getFonts();
     this.fromScene = data.from;
     this.toScene = data.to;
     this.scene.bringToTop();
@@ -27,29 +28,29 @@ export class TransitionScene extends Phaser.Scene {
     if (this.modernist) this.drawModernistTransitionFrame(gameName, lore);
 
     const nameLabel = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 10, '', {
-      fontSize: this.modernist ? '32px' : '36px',
-      fontFamily: 'monospace',
+      fontSize: this.modernist ? '40px' : '36px',
+      fontFamily: this.fonts.display,
       color: this.modernist ? this.visualStyle.css.paper : '#ffffff',
     }).setOrigin(0.5).setAlpha(0).setDepth(6000);
 
     const layerNum = lore ? `BREACHING LAYER ${String(lore.layer).padStart(2, '0')}...` : 'ENTERING SECTOR';
     const sectorLabel = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 55, layerNum, {
-      fontSize: '12px',
-      fontFamily: 'monospace',
+      fontSize: '13px',
+      fontFamily: this.fonts.ui,
       color: this.modernist ? this.visualStyle.css.vermilion : '#b845ff',
     }).setOrigin(0.5).setAlpha(0).setDepth(6000);
 
     const fwType = lore ? `FIREWALL TYPE: ${lore.firewallType}` : '';
     const fwLabel = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 25, fwType, {
       fontSize: '10px',
-      fontFamily: 'monospace',
+      fontFamily: this.fonts.mono,
       color: this.modernist ? this.visualStyle.css.cyan : '#00f0ff',
     }).setOrigin(0.5).setAlpha(0).setDepth(6000);
 
     let mutationLabel = null;
     if (mutationMgr && mutationMgr.activeMutation) {
       mutationLabel = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 50, '', {
-        fontSize: '14px', fontFamily: 'monospace',
+        fontSize: '14px', fontFamily: this.fonts.ui,
         color: this.modernist ? this.visualStyle.css.mustard : '#' + COLORS.NEON_ORANGE.toString(16).padStart(6, '0'),
       }).setOrigin(0.5).setAlpha(0).setDepth(6000);
     }
@@ -125,20 +126,20 @@ export class TransitionScene extends Phaser.Scene {
       g.strokeCircle(cx, cy, radius);
     }
 
+    const f = this.fonts;
     this.add.text(32, 32, 'ATARI PORTAL', {
-      fontSize: '28px',
-      fontFamily: 'monospace',
+      fontSize: '32px',
+      fontFamily: f.display,
       color: css.ink,
-      fontStyle: 'bold',
     }).setDepth(1);
     this.add.text(32, 72, 'TRANSITION / VECTOR IRIS / DATA SPLICE', {
-      fontSize: '10px',
-      fontFamily: 'monospace',
+      fontSize: '11px',
+      fontFamily: f.ui,
       color: css.vermilion,
     }).setDepth(1);
     this.add.text(GAME_WIDTH - 232, 34, `TARGET: ${gameName}\n${lore ? `LAYER: ${String(lore.layer).padStart(2, '0')}` : 'SECTOR: UNKNOWN'}\nSTYLE: ${this.visualStyle.shortLabel}`, {
-      fontSize: '9px',
-      fontFamily: 'monospace',
+      fontSize: '10px',
+      fontFamily: f.mono,
       color: css.ink,
       lineSpacing: 4,
     }).setDepth(1);

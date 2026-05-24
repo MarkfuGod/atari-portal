@@ -7,6 +7,18 @@ import TrailSystem from '../../vfx/TrailSystem.js';
 import DebrisSystem from '../../vfx/DebrisSystem.js';
 import GlitchEffect from '../../vfx/GlitchEffect.js';
 import CyberSceneFX from '../../vfx/CyberSceneFX.js';
+import PosterSceneFX from '../../vfx/PosterSceneFX.js';
+
+const MOD_PACMAN_KEY = 'pac-mod-pacman';
+const MOD_DOT_KEY = 'pac-mod-dot';
+const MOD_PELLET_KEY = 'pac-mod-pellet';
+const MOD_PORTAL_PELLET_KEY = 'pac-mod-portal-pellet';
+const MOD_GHOST_KEYS = {
+  'ghost-red': 'pac-mod-ghost-red',
+  'ghost-pink': 'pac-mod-ghost-pink',
+  'ghost-cyan': 'pac-mod-ghost-cyan',
+  'ghost-orange': 'pac-mod-ghost-orange',
+};
 
 const CELL = 28;
 const COLS = 20;
@@ -80,6 +92,8 @@ export class PacmanScene extends BaseGameScene {
     this.portalSpawned = false;
     this.gameOver = false;
 
+    if (this.modernist) this._ensureModernistTextures();
+
     this.drawMaze();
     this.createDots();
     this.createPacman();
@@ -102,6 +116,10 @@ export class PacmanScene extends BaseGameScene {
   }
 
   drawMaze() {
+    if (this.modernist) {
+      this.drawModernistMaze();
+      return;
+    }
     CyberSceneFX.drawCircuitBackdrop(this, {
       primary: COLORS.NEON_BLUE,
       secondary: COLORS.NEON_CYAN,
@@ -188,6 +206,106 @@ export class PacmanScene extends BaseGameScene {
     }
   }
 
+  // Print-native maze: paper backdrop, axis stripes, poster HUD, then ink
+  // 1.5px wall lines only on the boundary edges of wall cells (no triple
+  // stroke, no glow). Junction nodes become 2px ink dots.
+  drawModernistMaze() {
+    const p = this.palette;
+    this.cameras.main.setBackgroundColor(p.paper);
+
+    PosterSceneFX.drawPaperBackdrop(this, {
+      top: 32,
+      bottom: GAME_HEIGHT - 34,
+      depth: -35,
+      seam: false,
+      grid: true,
+      gridStep: CELL,
+      grainDensity: 240,
+      seed: 0xe54a,
+    });
+
+    PosterSceneFX.drawAxisStripData(this, {
+      top: 36,
+      bottom: GAME_HEIGHT - 38,
+      depth: -8,
+      leftAlpha: 0.42,
+      rightAlpha: 0.34,
+    });
+
+    PosterSceneFX.drawPosterHudFrame(this, {
+      title: 'PAC-MAN // CYBER SNACKER',
+      subtitle: 'NODE 72 · CX4024 · 1980',
+      barTop: 28,
+      barBottom: GAME_HEIGHT - 36,
+    });
+
+    // Paper plate under the maze with vermilion corner ticks
+    const panel = this.add.graphics().setDepth(-3);
+    const px = OFFSET_X - 14;
+    const py = OFFSET_Y - 14;
+    const pw = COLS * CELL + 28;
+    const ph = ROWS * CELL + 28;
+    panel.fillStyle(p.paper, 0.55);
+    panel.fillRect(px, py, pw, ph);
+    panel.lineStyle(1.5, p.ink, 1);
+    panel.strokeRect(px, py, pw, ph);
+    panel.lineStyle(1, p.ink, 0.32);
+    panel.strokeRect(px - 4, py - 4, pw + 8, ph + 8);
+
+    // Maze walls — only stroke the outward-facing edges of wall cells so the
+    // result reads like a blueprint, not a stack of filled squares.
+    const wallGfx = this.add.graphics().setDepth(3);
+    wallGfx.lineStyle(1.5, p.ink, 1);
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (MAZE[r][c] !== 1) continue;
+        const x = OFFSET_X + c * CELL;
+        const y = OFFSET_Y + r * CELL;
+        const inset = 3;
+        if (r === 0 || MAZE[r - 1][c] !== 1) wallGfx.lineBetween(x + inset, y + inset, x + CELL - inset, y + inset);
+        if (r === ROWS - 1 || MAZE[r + 1][c] !== 1) wallGfx.lineBetween(x + inset, y + CELL - inset, x + CELL - inset, y + CELL - inset);
+        if (c === 0 || MAZE[r][c - 1] !== 1) wallGfx.lineBetween(x + inset, y + inset, x + inset, y + CELL - inset);
+        if (c === COLS - 1 || MAZE[r][c + 1] !== 1) wallGfx.lineBetween(x + CELL - inset, y + inset, x + CELL - inset, y + CELL - inset);
+      }
+    }
+
+    // Junction nodes — 2x2 ink dots where 3+ paths meet
+    const nodes = this.add.graphics().setDepth(3);
+    nodes.fillStyle(p.ink, 1);
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (MAZE[r][c] !== 0) continue;
+        let paths = 0;
+        if (r > 0 && MAZE[r - 1][c] === 0) paths++;
+        if (r < ROWS - 1 && MAZE[r + 1][c] === 0) paths++;
+        if (c > 0 && MAZE[r][c - 1] === 0) paths++;
+        if (c < COLS - 1 && MAZE[r][c + 1] === 0) paths++;
+        if (paths >= 3) {
+          const nx = OFFSET_X + c * CELL + CELL / 2;
+          const ny = OFFSET_Y + r * CELL + CELL / 2;
+          nodes.fillRect(nx - 1, ny - 1, 2, 2);
+        }
+      }
+    }
+
+    // Page-edge ticks along the tunnel rows — print equivalent of the cyan
+    // tunnel side glow.
+    const edgeTicks = this.add.graphics().setDepth(-4);
+    edgeTicks.lineStyle(1, p.vermilion, 0.7);
+    const tunnelY = OFFSET_Y + 7 * CELL + CELL / 2;
+    for (let i = 0; i < 6; i++) {
+      edgeTicks.lineBetween(8 + i * 3, tunnelY - 6, 8 + i * 3, tunnelY + 6);
+      edgeTicks.lineBetween(GAME_WIDTH - 8 - i * 3, tunnelY - 6, GAME_WIDTH - 8 - i * 3, tunnelY + 6);
+    }
+
+    PosterSceneFX.drawCoordinateBlock(this, 24, 56, {
+      label: 'SECTOR 5D',
+      coord: '14.0 N  09.6 E',
+      node: '72',
+      depth: -2,
+    });
+  }
+
   _strokeMazeLine(gfx, x1, y1, x2, y2) {
     gfx.lineStyle(8, COLORS.NEON_BLUE, 0.08);
     gfx.lineBetween(x1, y1, x2, y2);
@@ -197,9 +315,118 @@ export class PacmanScene extends BaseGameScene {
     gfx.lineBetween(x1, y1, x2, y2);
   }
 
+  // Flat textures for pac-man, the four ghosts, dots, pellets, portal pellet.
+  // Pac-Man is a mustard wedge with an ink mouth; ghosts are outline-only
+  // silhouettes in their assigned palette swatch.
+  _ensureModernistTextures() {
+    const p = this.palette;
+
+    if (!this.textures.exists(MOD_PACMAN_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      const sz = 28;
+      const cx = sz / 2;
+      const cy = sz / 2;
+      const r = sz / 2 - 2;
+      const start = Phaser.Math.DegToRad(20);
+      const end = Phaser.Math.DegToRad(340);
+      g.fillStyle(p.mustard, 1);
+      g.beginPath();
+      g.moveTo(cx, cy);
+      g.arc(cx, cy, r, start, end, true);
+      g.closePath();
+      g.fillPath();
+      g.lineStyle(1.5, p.ink, 1);
+      g.beginPath();
+      g.moveTo(cx, cy);
+      g.arc(cx, cy, r, start, end, true);
+      g.closePath();
+      g.strokePath();
+      g.fillStyle(p.ink, 1);
+      g.fillCircle(cx + 1, cy - 6, 1.6);
+      g.generateTexture(MOD_PACMAN_KEY, sz, sz);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_DOT_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(p.ink, 1);
+      g.fillRect(0, 0, 4, 4);
+      g.generateTexture(MOD_DOT_KEY, 4, 4);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_PELLET_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(p.vermilion, 1);
+      g.fillCircle(9, 9, 7);
+      g.lineStyle(1, p.ink, 1);
+      g.strokeCircle(9, 9, 7);
+      g.generateTexture(MOD_PELLET_KEY, 18, 18);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_PORTAL_PELLET_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(p.paper, 1);
+      g.fillCircle(11, 11, 10);
+      g.lineStyle(2, p.vermilion, 1);
+      g.strokeCircle(11, 11, 10);
+      g.lineStyle(1, p.ink, 0.85);
+      g.strokeCircle(11, 11, 6);
+      g.fillStyle(p.vermilion, 1);
+      g.fillCircle(11, 11, 2);
+      g.generateTexture(MOD_PORTAL_PELLET_KEY, 22, 22);
+      g.destroy();
+    }
+
+    // Outline ghost silhouette, per Atari modernist plan: vermilion / cyan /
+    // violet / mustard outlines on transparent. Same icon profile so swap is
+    // pure tinting at the texture level.
+    const ghostPalette = {
+      'ghost-red': p.vermilion,
+      'ghost-pink': p.violet,
+      'ghost-cyan': p.cyan,
+      'ghost-orange': p.mustard,
+    };
+    for (const [neonKey, modKey] of Object.entries(MOD_GHOST_KEYS)) {
+      if (this.textures.exists(modKey)) continue;
+      const color = ghostPalette[neonKey];
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      const w = 24;
+      const h = 24;
+      g.lineStyle(1.5, color, 1);
+      // Dome + skirt path
+      g.beginPath();
+      g.moveTo(2, 22);
+      g.lineTo(2, 11);
+      g.arc(12, 11, 10, Math.PI, 0, false);
+      g.lineTo(22, 22);
+      g.lineTo(19, 19);
+      g.lineTo(16, 22);
+      g.lineTo(13, 19);
+      g.lineTo(10, 22);
+      g.lineTo(7, 19);
+      g.lineTo(4, 22);
+      g.closePath();
+      g.strokePath();
+      // Eyes
+      g.fillStyle(p.ink, 1);
+      g.fillRect(8, 9, 2, 3);
+      g.fillRect(14, 9, 2, 3);
+      g.fillStyle(color, 1);
+      // Tiny accent pip on the dome
+      g.fillCircle(12, 5, 1);
+      g.generateTexture(modKey, w, h);
+      g.destroy();
+    }
+  }
+
   createDots() {
     this.dots = this.add.group();
     this.powerPellets = this.add.group();
+
+    const dotTex = this.modernist ? MOD_DOT_KEY : 'dot';
+    const pelletTex = this.modernist ? MOD_PELLET_KEY : 'power-pellet';
 
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
@@ -207,15 +434,17 @@ export class PacmanScene extends BaseGameScene {
         const pos = cellToWorld(c, r);
 
         if (val === 0) {
-          const dot = this.add.image(pos.x, pos.y, 'dot').setDisplaySize(5, 5).setDepth(5);
-          dot.setBlendMode(Phaser.BlendModes.ADD);
+          const dot = this.add.image(pos.x, pos.y, dotTex)
+            .setDisplaySize(this.modernist ? 4 : 5, this.modernist ? 4 : 5)
+            .setDepth(5);
+          if (!this.modernist) dot.setBlendMode(Phaser.BlendModes.ADD);
           dot.gridCol = c;
           dot.gridRow = r;
           this.dots.add(dot);
           this.totalDots++;
         } else if (val === 2) {
-          const pp = this.add.image(pos.x, pos.y, 'power-pellet').setDisplaySize(18, 18).setDepth(6);
-          pp.setBlendMode(Phaser.BlendModes.ADD);
+          const pp = this.add.image(pos.x, pos.y, pelletTex).setDisplaySize(18, 18).setDepth(6);
+          if (!this.modernist) pp.setBlendMode(Phaser.BlendModes.ADD);
           pp.gridCol = c;
           pp.gridRow = r;
           this.powerPellets.add(pp);
@@ -223,7 +452,7 @@ export class PacmanScene extends BaseGameScene {
             targets: pp,
             scaleX: { from: 0.9, to: 1.2 },
             scaleY: { from: 0.9, to: 1.2 },
-            alpha: { from: 0.7, to: 1 },
+            alpha: { from: this.modernist ? 0.85 : 0.7, to: 1 },
             duration: 600,
             yoyo: true,
             repeat: -1,
@@ -236,11 +465,17 @@ export class PacmanScene extends BaseGameScene {
 
   createPacman() {
     const startPos = cellToWorld(10, 11);
-    this.pacGlow = this.add.circle(startPos.x, startPos.y, CELL * 0.72, COLORS.NEON_YELLOW, 0.16)
-      .setDepth(8)
-      .setBlendMode(Phaser.BlendModes.ADD);
-    this.pacman = this.add.image(startPos.x, startPos.y, 'pacman').setDisplaySize(CELL - 1, CELL - 1);
-    this.pacman.setDepth(10).setBlendMode(Phaser.BlendModes.ADD);
+    if (this.modernist) {
+      this.pacGlow = null;
+    } else {
+      this.pacGlow = this.add.circle(startPos.x, startPos.y, CELL * 0.72, COLORS.NEON_YELLOW, 0.16)
+        .setDepth(8)
+        .setBlendMode(Phaser.BlendModes.ADD);
+    }
+    const pacTex = this.modernist ? MOD_PACMAN_KEY : 'pacman';
+    this.pacman = this.add.image(startPos.x, startPos.y, pacTex).setDisplaySize(CELL - 1, CELL - 1);
+    this.pacman.setDepth(10);
+    if (!this.modernist) this.pacman.setBlendMode(Phaser.BlendModes.ADD);
     this.pacman.gridCol = 10;
     this.pacman.gridRow = 11;
     this.pacman.direction = DIRECTIONS.LEFT;
@@ -250,9 +485,11 @@ export class PacmanScene extends BaseGameScene {
     this.pacman.targetX = startPos.x;
     this.pacman.targetY = startPos.y;
 
+    // TrailSystem is style-aware (modernist ink dash; neon glow trail), so
+    // this single call works for both branches.
     this._pacTrailId = TrailSystem.createTrail(this, this.pacman, {
-      color: COLORS.NEON_YELLOW,
-      length: 8,
+      color: this.modernist ? this.palette.ink : COLORS.NEON_YELLOW,
+      length: this.modernist ? 4 : 8,
       interval: 38,
       size: 7,
     });
@@ -266,20 +503,35 @@ export class PacmanScene extends BaseGameScene {
       { key: 'ghost-orange', col: 10, row: 6, personality: 'random' },
     ];
 
+    const p = this.palette;
+    const modColors = {
+      'ghost-red': p.vermilion,
+      'ghost-pink': p.violet,
+      'ghost-cyan': p.cyan,
+      'ghost-orange': p.mustard,
+    };
+    const neonColors = {
+      'ghost-red': COLORS.NEON_RED,
+      'ghost-pink': COLORS.NEON_PINK,
+      'ghost-cyan': COLORS.NEON_CYAN,
+      'ghost-orange': COLORS.NEON_ORANGE,
+    };
+
     this.ghosts = [];
     for (const cfg of ghostConfigs) {
       const pos = cellToWorld(cfg.col, cfg.row);
-      const ghostColors = {
-        'ghost-red': COLORS.NEON_RED,
-        'ghost-pink': COLORS.NEON_PINK,
-        'ghost-cyan': COLORS.NEON_CYAN,
-        'ghost-orange': COLORS.NEON_ORANGE,
-      };
-      const glow = this.add.circle(pos.x, pos.y, CELL * 0.68, ghostColors[cfg.key] || COLORS.NEON_RED, 0.12)
-        .setDepth(8)
-        .setBlendMode(Phaser.BlendModes.ADD);
-      const ghost = this.add.image(pos.x, pos.y, cfg.key).setDisplaySize(CELL - 1, CELL - 1);
-      ghost.setDepth(10).setBlendMode(Phaser.BlendModes.ADD);
+      let glow = null;
+      if (!this.modernist) {
+        glow = this.add.circle(pos.x, pos.y, CELL * 0.68, neonColors[cfg.key] || COLORS.NEON_RED, 0.12)
+          .setDepth(8)
+          .setBlendMode(Phaser.BlendModes.ADD);
+      }
+      const ghostTex = this.modernist
+        ? (MOD_GHOST_KEYS[cfg.key] || MOD_GHOST_KEYS['ghost-red'])
+        : cfg.key;
+      const ghost = this.add.image(pos.x, pos.y, ghostTex).setDisplaySize(CELL - 1, CELL - 1);
+      ghost.setDepth(10);
+      if (!this.modernist) ghost.setBlendMode(Phaser.BlendModes.ADD);
       ghost.gridCol = cfg.col;
       ghost.gridRow = cfg.row;
       ghost.direction = DIRECTIONS.UP;
@@ -294,8 +546,10 @@ export class PacmanScene extends BaseGameScene {
       this.ghosts.push(ghost);
 
       ghost._trailId = TrailSystem.createTrail(this, ghost, {
-        color: ghostColors[cfg.key] || COLORS.NEON_RED,
-        length: 7,
+        color: this.modernist
+          ? modColors[cfg.key]
+          : (neonColors[cfg.key] || COLORS.NEON_RED),
+        length: this.modernist ? 3 : 7,
         interval: 48,
         size: 5,
       });
@@ -332,6 +586,7 @@ export class PacmanScene extends BaseGameScene {
   }
 
   syncNeonActors(time) {
+    if (this.modernist) return;
     if (this.pacGlow) {
       this.pacGlow.setPosition(this.pacman.x, this.pacman.y);
       this.pacGlow.setScale(1 + Math.sin(time * 0.01) * 0.08);
@@ -578,13 +833,16 @@ export class PacmanScene extends BaseGameScene {
     for (const ghost of this.ghosts) {
       if (!ghost.eaten) {
         ghost.vulnerable = true;
-        ghost.setTint(0x0066ff);
-        ghost.setAlpha(0.4);
-        // Flicker tween for glitch state
+        ghost.setTint(this.modernist ? this.palette.blue : 0x0066ff);
+        ghost.setAlpha(this.modernist ? 0.85 : 0.4);
+        // Flicker tween for glitch state — in modernist the ghosts stay
+        // saturated (no neon flicker), just gently breathe.
         const flicker = this.tweens.add({
           targets: ghost,
-          alpha: { from: 0.2, to: 0.6 },
-          duration: 200,
+          alpha: this.modernist
+            ? { from: 0.7, to: 1 }
+            : { from: 0.2, to: 0.6 },
+          duration: this.modernist ? 320 : 200,
           yoyo: true,
           repeat: -1,
         });
@@ -661,8 +919,11 @@ export class PacmanScene extends BaseGameScene {
         ghost.setScale(1);
       },
     });
+    const p = this.palette;
     DebrisSystem.deathBurst(this, ghost.x, ghost.y, 'medium', {
-      colors: [COLORS.NEON_BLUE, COLORS.NEON_CYAN, COLORS.WHITE],
+      colors: this.modernist
+        ? [p.ink, p.vermilion, p.cyan]
+        : [COLORS.NEON_BLUE, COLORS.NEON_CYAN, COLORS.WHITE],
     });
     this.score.award('ghost');
     SFX.eatGhost();
@@ -771,7 +1032,8 @@ export class PacmanScene extends BaseGameScene {
     const pos = cellToWorld(spot.col, spot.row);
     this.grid[spot.row][spot.col] = 4;
 
-    this.portalPellet = this.add.image(pos.x, pos.y, 'portal-pellet').setDisplaySize(18, 18);
+    const portalTex = this.modernist ? MOD_PORTAL_PELLET_KEY : 'portal-pellet';
+    this.portalPellet = this.add.image(pos.x, pos.y, portalTex).setDisplaySize(18, 18);
     this.portalPellet.gridCol = spot.col;
     this.portalPellet.gridRow = spot.row;
 

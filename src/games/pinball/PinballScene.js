@@ -4,6 +4,17 @@ import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../../config.js';
 import SFX from '../../core/SFXManager.js';
 import AudioReactive from '../../core/AudioReactiveSystem.js';
 import CyberSceneFX from '../../vfx/CyberSceneFX.js';
+import PosterSceneFX from '../../vfx/PosterSceneFX.js';
+import { cssColor } from '../../core/VisualStyle.js';
+
+const TABLE_WIDTH = 800;
+const MOD_BOUND_KEY = 'pin-mod-bound';
+const MOD_BUMPER_KEY = 'pin-mod-bumper';
+const MOD_BALL_KEY = 'pin-mod-ball';
+const MOD_WORMHOLE_KEY = 'pin-mod-wormhole';
+const MOD_BOSS_KEY = 'pin-mod-boss';
+const MOD_FLIPPER_KEY = 'pin-mod-flipper';
+const MOD_TARGET_KEY = 'pin-mod-target';
 
 export class PinballScene extends BaseGameScene {
   constructor() {
@@ -14,42 +25,51 @@ export class PinballScene extends BaseGameScene {
 
   create() {
     super.create();
-    
-    // 👉 多球狂热只触发一次的全局锁
-    this.multiballTriggered = false;
 
-    this.physics.world.gravity.y = 1200; 
+    this.multiballTriggered = false;
+    this.tableOffsetX = Math.floor((GAME_WIDTH - TABLE_WIDTH) / 2);
+    const tx = (x) => this.tableX(x);
+
+    this.physics.world.gravity.y = 1200;
     this.physics.world.setBoundsCollision(true, true, true, false);
 
+    if (this.modernist) this._ensureModernistTextures();
     this.drawCyberArena();
     this.tableBounds = this.physics.add.staticGroup();
-    this.pearls = this.physics.add.staticGroup(); 
+    this.pearls = this.physics.add.staticGroup();
+
+    const p = this.palette;
+    const boundTex = this.modernist ? MOD_BOUND_KEY : 'pinball-bound';
+    const modernist = this.modernist;
 
     const buildWall = (x, y, w, h, angle = 0, color = 0xffffff) => {
-      const wall = this.tableBounds.create(x, y, 'pinball-bound');
-      wall.setScale(w / 20, h / 20).setAngle(angle).setTint(color).refreshBody();
+      const wall = this.tableBounds.create(x, y, boundTex);
+      const tint = modernist ? p.ink : color;
+      wall.setScale(w / 20, h / 20).setAngle(angle).setTint(tint).refreshBody();
       return wall;
     };
-    
+
     const buildSlantedWall = (x, y, w, angle, color) => {
-      this.add.image(x, y, 'pinball-bound').setScale(w / 20, 1).setAngle(angle).setTint(color).setBlendMode(Phaser.BlendModes.ADD);
+      const tint = modernist ? p.ink : color;
+      const img = this.add.image(x, y, boundTex).setScale(w / 20, 1).setAngle(angle).setTint(tint);
+      if (!modernist) img.setBlendMode(Phaser.BlendModes.ADD);
       const rad = angle * Math.PI / 180;
       const startX = x - Math.cos(rad) * (w / 2), startY = y - Math.sin(rad) * (w / 2);
       const endX = x + Math.cos(rad) * (w / 2), endY = y + Math.sin(rad) * (w / 2);
-      
+
       const steps = Math.ceil(w / 12);
       for (let i = 0; i <= steps; i++) {
-        const node = this.pearls.create(startX + (endX - startX) * (i / steps), startY + (endY - startY) * (i / steps), 'pinball-bound'); 
+        const node = this.pearls.create(startX + (endX - startX) * (i / steps), startY + (endY - startY) * (i / steps), boundTex);
         node.setScale(1.5).setVisible(false).refreshBody();
       }
     };
 
-    buildWall(10, 300, 20, 600); buildWall(790, 300, 20, 600); buildWall(400, 10, 800, 20);           
-    buildWall(735, 380, 20, 440); buildWall(765, 570, 40, 20, 0, 0x00f0ff); 
-    buildSlantedWall(735, 50, 160, 45, 0xffffff);
-    buildSlantedWall(80, 50, 200, -45, 0xffffff);      
-    buildSlantedWall(130, 450, 245, 20, 0xb845ff); 
-    buildSlantedWall(610, 450, 245, -20, 0xb845ff);
+    buildWall(tx(10), 300, 20, 600); buildWall(tx(790), 300, 20, 600); buildWall(tx(400), 10, 800, 20);
+    buildWall(tx(735), 380, 20, 440); buildWall(tx(765), 570, 40, 20, 0, modernist ? p.vermilion : 0x00f0ff);
+    buildSlantedWall(tx(735), 50, 160, 45, 0xffffff);
+    buildSlantedWall(tx(80), 50, 200, -45, 0xffffff);
+    buildSlantedWall(tx(130), 450, 245, 20, modernist ? p.violet : 0xb845ff);
+    buildSlantedWall(tx(610), 450, 245, -20, modernist ? p.violet : 0xb845ff);
 
     this.balls = this.physics.add.group();
 
@@ -57,46 +77,55 @@ export class PinballScene extends BaseGameScene {
     this.spawnMultiballTargets();
 
     this.bumpers = this.physics.add.staticGroup();
+    const bumperTex = modernist ? MOD_BUMPER_KEY : 'bumper-ring';
     [{ x: 370, y: 220 }, { x: 300, y: 320 }, { x: 450, y: 320 },  { x: 120, y: 400 }, { x: 660, y: 400 }].forEach(pos => {
-      this.bumpers.create(pos.x, pos.y, 'bumper-ring').setCircle(26).setBlendMode(Phaser.BlendModes.ADD);
+      const b = this.bumpers.create(tx(pos.x), pos.y, bumperTex).setCircle(26);
+      if (!modernist) b.setBlendMode(Phaser.BlendModes.ADD);
     });
 
-    this.wormholeL = this.physics.add.sprite(120, 60, 'wormhole').setBlendMode(Phaser.BlendModes.ADD);
+    const wormholeTex = modernist ? MOD_WORMHOLE_KEY : 'wormhole';
+    this.wormholeL = this.physics.add.sprite(tx(120), 60, wormholeTex);
+    if (!modernist) this.wormholeL.setBlendMode(Phaser.BlendModes.ADD);
     this.wormholeL.body.setAllowGravity(false).setImmovable(true).setCircle(30, 10, 10);
-    this.wormholeR = this.physics.add.sprite(600, 60, 'wormhole').setBlendMode(Phaser.BlendModes.ADD);
+    this.wormholeR = this.physics.add.sprite(tx(600), 60, wormholeTex);
+    if (!modernist) this.wormholeR.setBlendMode(Phaser.BlendModes.ADD);
     this.wormholeR.body.setAllowGravity(false).setImmovable(true).setCircle(30, 10, 10);
 
     this.bossHealth = 5;
-    this.boss = this.physics.add.image(GAME_WIDTH / 2, 80, 'boss').setBlendMode(Phaser.BlendModes.ADD);
+    this.boss = this.physics.add.image(GAME_WIDTH / 2, 80, modernist ? MOD_BOSS_KEY : 'boss');
+    if (!modernist) this.boss.setBlendMode(Phaser.BlendModes.ADD);
     this.boss.body.setImmovable(true).setAllowGravity(false).setCircle(30);
-    this.tweens.add({ targets: this.boss, x: {from: 250, to: 550}, duration: 2500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: this.boss, x: {from: tx(250), to: tx(550)}, duration: 2500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
     // ==========================================
     // 🕹️ 四把拨杆构建区
     // ==========================================
-    // 1. 底部左拨杆
-    this.leftFlipper = this.add.container(250, 530);
-    this.leftFlipper.add(this.add.image(50, 0, 'flipper').setOrigin(0.5).setBlendMode(Phaser.BlendModes.ADD));
+    const flipperTex = modernist ? MOD_FLIPPER_KEY : 'flipper';
+    const addFlipperImg = (container, dx) => {
+      const img = this.add.image(dx, 0, flipperTex).setOrigin(0.5);
+      if (!modernist) img.setBlendMode(Phaser.BlendModes.ADD);
+      container.add(img);
+    };
+
+    this.leftFlipper = this.add.container(tx(250), 530);
+    addFlipperImg(this.leftFlipper, 50);
     this.physics.add.existing(this.leftFlipper);
-    this.leftFlipper.body.setImmovable(true).setAllowGravity(false).setSize(100, 24).setOffset(0, -12); 
+    this.leftFlipper.body.setImmovable(true).setAllowGravity(false).setSize(100, 24).setOffset(0, -12);
 
-    // 2. 底部右拨杆
-    this.rightFlipper = this.add.container(490, 530);
-    this.rightFlipper.add(this.add.image(-50, 0, 'flipper').setOrigin(0.5).setBlendMode(Phaser.BlendModes.ADD));
+    this.rightFlipper = this.add.container(tx(490), 530);
+    addFlipperImg(this.rightFlipper, -50);
     this.physics.add.existing(this.rightFlipper);
-    this.rightFlipper.body.setImmovable(true).setAllowGravity(false).setSize(100, 24).setOffset(-100, -12); 
+    this.rightFlipper.body.setImmovable(true).setAllowGravity(false).setSize(100, 24).setOffset(-100, -12);
 
-    // 🌟 3. 新增：顶部左拨杆
-    this.upperLeftFlipper = this.add.container(10, 250);
-    this.upperLeftFlipper.add(this.add.image(50, 0, 'flipper').setOrigin(0.5).setBlendMode(Phaser.BlendModes.ADD));
+    this.upperLeftFlipper = this.add.container(tx(10), 250);
+    addFlipperImg(this.upperLeftFlipper, 50);
     this.physics.add.existing(this.upperLeftFlipper);
-    this.upperLeftFlipper.body.setImmovable(true).setAllowGravity(false).setSize(100, 24).setOffset(0, -12); 
+    this.upperLeftFlipper.body.setImmovable(true).setAllowGravity(false).setSize(100, 24).setOffset(0, -12);
 
-    // 🌟 4. 新增：顶部右拨杆
-    this.upperRightFlipper = this.add.container(720, 250);
-    this.upperRightFlipper.add(this.add.image(-50, 0, 'flipper').setOrigin(0.5).setBlendMode(Phaser.BlendModes.ADD));
+    this.upperRightFlipper = this.add.container(tx(720), 250);
+    addFlipperImg(this.upperRightFlipper, -50);
     this.physics.add.existing(this.upperRightFlipper);
-    this.upperRightFlipper.body.setImmovable(true).setAllowGravity(false).setSize(100, 24).setOffset(-100, -12); 
+    this.upperRightFlipper.body.setImmovable(true).setAllowGravity(false).setSize(100, 24).setOffset(-100, -12);
 
     // ==========================================
     // ⚡ 物理碰撞注册区
@@ -120,13 +149,175 @@ export class PinballScene extends BaseGameScene {
     this.physics.add.overlap(this.balls, [this.wormholeL, this.wormholeR], this.onEnterWormhole, null, this);
 
     this.setupControls();
-    this.plungeText = this.add.text(765, 540, 'SPACE', { fontSize: '10px', color: '#00f0ff' }).setOrigin(0.5);
-    this.comboText = this.add.text(GAME_WIDTH / 2, 20, '', { fontSize: '18px', color: '#ff00e6', fontStyle: 'bold' }).setOrigin(0.5).setDepth(10);
-    
-    this.spawnBall(765, 450);
+    const plungeColor = modernist ? cssColor(p.ink) : '#00f0ff';
+    const comboColor = modernist ? cssColor(p.vermilion) : '#ff00e6';
+    this.plungeText = this.add.text(tx(765), 540, 'SPACE', { fontSize: '10px', color: plungeColor }).setOrigin(0.5);
+    this.comboText = this.add.text(GAME_WIDTH / 2, 20, '', { fontSize: '18px', color: comboColor, fontStyle: 'bold' }).setOrigin(0.5).setDepth(10);
+    if (modernist) this.comboText.setStroke(cssColor(p.ink), 1);
+
+    this.spawnBall(tx(765), 450);
+  }
+
+  // Print-native pinball: paper backdrop, axis ticks, poster HUD, plus
+  // diagonal cross-hatched paper gutters on both sides of the playfield.
+  drawModernistArena() {
+    const p = this.palette;
+    this.cameras.main.setBackgroundColor(p.paper);
+
+    PosterSceneFX.drawPaperBackdrop(this, {
+      top: 32,
+      bottom: GAME_HEIGHT - 34,
+      depth: -35,
+      seam: false,
+      grid: true,
+      gridStep: 40,
+      grainDensity: 240,
+      seed: 0x91d4,
+    });
+
+    PosterSceneFX.drawAxisStripData(this, {
+      top: 36,
+      bottom: GAME_HEIGHT - 38,
+      depth: -8,
+      leftAlpha: 0.42,
+      rightAlpha: 0.34,
+    });
+
+    PosterSceneFX.drawPosterHudFrame(this, {
+      title: 'PINBALL // WORMHOLE TABLE',
+      subtitle: 'NODE 72 · CX4024 · 1984',
+      barTop: 28,
+      barBottom: GAME_HEIGHT - 36,
+    });
+
+    // Diagonal cross-hatch gutters left/right of the active table region
+    const hatch = this.add.graphics().setDepth(-10);
+    hatch.lineStyle(1, p.ink, 0.18);
+    const drawHatch = (gx, gw) => {
+      for (let i = -GAME_HEIGHT; i < gw + GAME_HEIGHT; i += 6) {
+        hatch.lineBetween(gx + i, 38, gx + i + GAME_HEIGHT, GAME_HEIGHT - 40);
+      }
+    };
+    drawHatch(0, 0);
+    drawHatch(GAME_WIDTH - 4, 0);
+
+    PosterSceneFX.drawCoordinateBlock(this, 24, 56, {
+      label: 'SECTOR 8E',
+      coord: '17.8 N  29.4 E',
+      node: '72',
+      depth: -2,
+    });
+  }
+
+  _ensureModernistTextures() {
+    const p = this.palette;
+
+    if (!this.textures.exists(MOD_BOUND_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(p.ink, 1);
+      g.fillRect(0, 0, 20, 20);
+      g.generateTexture(MOD_BOUND_KEY, 20, 20);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_BUMPER_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      const cx = 30; const cy = 30;
+      g.fillStyle(p.paper, 1);
+      g.fillCircle(cx, cy, 26);
+      g.lineStyle(2, p.vermilion, 1);
+      g.strokeCircle(cx, cy, 24);
+      g.lineStyle(1.5, p.mustard, 1);
+      g.strokeCircle(cx, cy, 18);
+      g.lineStyle(1, p.cyan, 1);
+      g.strokeCircle(cx, cy, 12);
+      g.fillStyle(p.vermilion, 1);
+      g.fillCircle(cx, cy, 4);
+      g.generateTexture(MOD_BUMPER_KEY, 60, 60);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_BALL_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(p.vermilion, 1);
+      g.fillCircle(16, 16, 11);
+      g.lineStyle(1.5, p.ink, 1);
+      g.strokeCircle(16, 16, 11);
+      g.fillStyle(p.paper, 1);
+      g.fillCircle(13, 13, 2);
+      g.generateTexture(MOD_BALL_KEY, 32, 32);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_WORMHOLE_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      const cx = 40; const cy = 40;
+      g.fillStyle(p.paper, 1);
+      g.fillCircle(cx, cy, 32);
+      g.lineStyle(2, p.violet, 1);
+      g.strokeCircle(cx, cy, 30);
+      g.lineStyle(1.5, p.vermilion, 1);
+      g.strokeCircle(cx, cy, 22);
+      g.lineStyle(1, p.ink, 0.7);
+      // Spoke rays — slow rotation orientation
+      for (let i = 0; i < 8; i++) {
+        const a = (Math.PI * 2 * i) / 8;
+        g.lineBetween(cx + Math.cos(a) * 12, cy + Math.sin(a) * 12, cx + Math.cos(a) * 28, cy + Math.sin(a) * 28);
+      }
+      g.fillStyle(p.ink, 1);
+      g.fillCircle(cx, cy, 4);
+      g.generateTexture(MOD_WORMHOLE_KEY, 80, 80);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_BOSS_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(p.vermilion, 1);
+      g.fillTriangle(30, 5, 55, 30, 30, 55);
+      g.fillTriangle(30, 5, 5, 30, 30, 55);
+      g.lineStyle(2, p.ink, 1);
+      g.strokeTriangle(30, 5, 55, 30, 30, 55);
+      g.strokeTriangle(30, 5, 5, 30, 30, 55);
+      g.fillStyle(p.paper, 1);
+      g.fillCircle(30, 30, 6);
+      g.lineStyle(1, p.ink, 1);
+      g.strokeCircle(30, 30, 6);
+      g.fillStyle(p.vermilion, 1);
+      g.fillCircle(30, 30, 2);
+      g.generateTexture(MOD_BOSS_KEY, 60, 60);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_FLIPPER_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      // Ink filled wedge, 100x20
+      g.fillStyle(p.ink, 1);
+      g.fillTriangle(0, 4, 100, 12, 0, 16);
+      g.lineStyle(1, p.vermilion, 1);
+      g.strokeTriangle(0, 4, 100, 12, 0, 16);
+      g.generateTexture(MOD_FLIPPER_KEY, 100, 20);
+      g.destroy();
+    }
+
+    if (!this.textures.exists(MOD_TARGET_KEY)) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(p.mustard, 1);
+      g.fillRect(2, 4, 36, 12);
+      g.lineStyle(1.5, p.ink, 1);
+      g.strokeRect(2, 4, 36, 12);
+      g.fillStyle(p.ink, 1);
+      // Bullseye chevron
+      g.fillTriangle(15, 10, 25, 5, 25, 15);
+      g.generateTexture(MOD_TARGET_KEY, 40, 20);
+      g.destroy();
+    }
   }
 
   drawCyberArena() {
+    if (this.modernist) {
+      this.drawModernistArena();
+      return;
+    }
     CyberSceneFX.drawCircuitBackdrop(this, {
       primary: COLORS.NEON_MAGENTA,
       secondary: COLORS.NEON_PURPLE,
@@ -144,26 +335,36 @@ export class PinballScene extends BaseGameScene {
     });
   }
 
+  tableX(x) {
+    const offset = this.tableOffsetX ?? Math.floor((GAME_WIDTH - TABLE_WIDTH) / 2);
+    return x + offset;
+  }
+
   getCollisionPair(obj1, obj2) {
-    const isObj1Ball = obj1.texture && obj1.texture.key === 'pin-ball';
+    const ballKeys = new Set(['pin-ball', MOD_BALL_KEY]);
+    const isObj1Ball = obj1.texture && ballKeys.has(obj1.texture.key);
     return isObj1Ball ? { ball: obj1, other: obj2 } : { ball: obj2, other: obj1 };
   }
 
   spawnBall(x, y) {
-    const ball = this.balls.create(x, y, 'pin-ball');
-    ball.setDepth(20).setBlendMode(Phaser.BlendModes.ADD);
+    const ballTex = this.modernist ? MOD_BALL_KEY : 'pin-ball';
+    const ball = this.balls.create(x, y, ballTex);
+    ball.setDepth(20);
+    if (!this.modernist) ball.setBlendMode(Phaser.BlendModes.ADD);
     ball.setCollideWorldBounds(true);
     ball.setBounce(0.95);
     ball.body.setCircle(10, 6, 6);
     ball.setMaxVelocity(2500, 2500);
-    ball.setData('inWormhole', false); 
+    ball.setData('inWormhole', false);
     return ball;
   }
 
   spawnMultiballTargets() {
     this.activeTargets = 3;
+    const targetTex = this.modernist ? MOD_TARGET_KEY : 'target-drop';
     [{ x: 220, y: 250 }, { x: 370, y: 150 }, { x: 520, y: 250 }].forEach(pos => {
-      this.targets.create(pos.x, pos.y, 'target-drop').setOrigin(0.5).setBlendMode(Phaser.BlendModes.ADD);
+      const t = this.targets.create(this.tableX(pos.x), pos.y, targetTex).setOrigin(0.5);
+      if (!this.modernist) t.setBlendMode(Phaser.BlendModes.ADD);
     });
   }
 
@@ -208,20 +409,24 @@ export class PinballScene extends BaseGameScene {
     this.rightFlipper.setAngle((!invX && isRightDown) || (invX && isLeftDown) ? 30 : -20);
     this.upperRightFlipper.setAngle((!invX && isRightDown) || (invX && isLeftDown) ? 30 : -20);
 
+    const p = this.palette;
+    const chargedColor = this.modernist ? cssColor(p.vermilion) : '#ff00e6';
+    const idleColor = this.modernist ? cssColor(p.ink) : '#00f0ff';
+
     if (this.keySpace.isDown) {
-      this.plungeForce = Phaser.Math.Clamp(this.plungeForce + delta * 4, 0, 2200); 
-      this.plungeText.setAlpha(Math.sin(time / 30)); this.plungeText.setColor('#ff00e6'); 
+      this.plungeForce = Phaser.Math.Clamp(this.plungeForce + delta * 4, 0, 2200);
+      this.plungeText.setAlpha(Math.sin(time / 30)); this.plungeText.setColor(chargedColor);
     } else if (Phaser.Input.Keyboard.JustUp(this.keySpace)) {
       let plunged = false;
       this.balls.getChildren().forEach(ball => {
-        if (ball.x > 730 && ball.y > 400) {
+        if (ball.x > this.tableX(730) && ball.y > 400) {
           ball.setVelocityY(-Math.max(this.plungeForce, 1200));
           plunged = true;
         }
       });
       if (plunged) { SFX.powerPellet && SFX.powerPellet(); this.resetCombo(); }
       this.plungeForce = 0;
-      this.plungeText.setAlpha(1); this.plungeText.setColor('#00f0ff'); 
+      this.plungeText.setAlpha(1); this.plungeText.setColor(idleColor);
     }
 
     this.balls.getChildren().forEach(ball => {
@@ -233,7 +438,7 @@ export class PinballScene extends BaseGameScene {
     if (this.balls.countActive() === 0 && !this.gameOver) {
       this.onPlayerDeath();
       this.resetCombo(); 
-      this.spawnBall(765, 450); 
+      this.spawnBall(this.tableX(765), 450); 
     }
     
     if (this.balls.countActive() > 0) {
@@ -245,6 +450,12 @@ export class PinballScene extends BaseGameScene {
   }
 
   syncNeonActors(time) {
+    if (this.modernist) {
+      // Print mode: wormholes still rotate via setRotation in update(); keep
+      // the boss subtly breathing but no alpha flicker on the ball.
+      if (this.boss && this.boss.active) this.boss.setScale(1 + Math.sin(time * 0.005) * 0.03);
+      return;
+    }
     this.balls.getChildren().forEach((ball, i) => {
       if (!ball.active) return;
       ball.setAlpha(0.88 + Math.sin(time * 0.01 + i) * 0.12);
@@ -315,14 +526,18 @@ export class PinballScene extends BaseGameScene {
     this.activeTargets--;
     
     if (this.activeTargets <= 0 && !this.multiballTriggered) {
-      this.multiballTriggered = true; 
-      
-      this.cameras.main.flash(800, 0, 255, 0); 
+      this.multiballTriggered = true;
+
+      if (this.modernist) {
+        this.cameras.main.flash(600, 242, 239, 230, 0.5);
+      } else {
+        this.cameras.main.flash(800, 0, 255, 0);
+      }
       SFX.powerPellet && SFX.powerPellet();
       this._showScorePopup("MULTIBALL MADNESS!", GAME_WIDTH/2, 300);
-      
-      this.spawnBall(350, 100).setVelocity(-300, -200);
-      this.spawnBall(390, 100).setVelocity(300, -200);
+
+      this.spawnBall(this.tableX(350), 100).setVelocity(-300, -200);
+      this.spawnBall(this.tableX(390), 100).setVelocity(300, -200);
     }
   }
 
@@ -345,7 +560,7 @@ export class PinballScene extends BaseGameScene {
       this.triggerPortal(GAME_WIDTH / 2, 80); 
       this._showScorePopup("BOSS DEFEATED!", GAME_WIDTH/2, 100);
     } else {
-      boss.setTint(0xffffff);
+      boss.setTint(this.modernist ? this.palette.paper : 0xffffff);
       this.tweens.add({
         targets: boss,
         scale: 1.2,

@@ -1,5 +1,5 @@
-export const GAME_WIDTH = 800;
-export const GAME_HEIGHT = 600;
+export const GAME_WIDTH = 1024;
+export const GAME_HEIGHT = 576;
 export const PIXEL_SCALE = 1;
 
 export const COLORS = {

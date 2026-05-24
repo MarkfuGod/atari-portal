@@ -5,7 +5,7 @@ import SFX from '../core/SFXManager.js';
 import BGM from '../core/AudioManager.js';
 import NeonGlow from '../vfx/NeonGlow.js';
 import AudioBackground from '../vfx/AudioBackground.js';
-import { getVisualStyle, isModernistStyle } from '../core/VisualStyle.js';
+import { getVisualStyle, isModernistStyle, getFonts } from '../core/VisualStyle.js';
 
 export class VictoryScene extends Phaser.Scene {
   constructor() {
@@ -26,28 +26,29 @@ export class VictoryScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(this.palette.terminal);
     AudioBackground.setScene('VictoryScene');
 
+    const f = this.visualStyle.fonts || getFonts();
     const title = this.add.text(GAME_WIDTH / 2, 130, 'SYSTEM RESTORED', {
-      fontSize: '40px',
-      fontFamily: 'monospace',
+      fontSize: '48px',
+      fontFamily: f.display,
       color: this.modernist ? this.visualStyle.css.green : '#39ff14',
     }).setOrigin(0.5);
     if (!this.modernist) NeonGlow.applyTextGlow(this, title, COLORS.NEON_GREEN);
 
     this.add.text(GAME_WIDTH / 2, 195, 'The rift has been sealed. All sectors stable.', {
       fontSize: '14px',
-      fontFamily: 'monospace',
+      fontFamily: f.ui,
       color: this.modernist ? this.visualStyle.css.paper : '#00f0ff',
     }).setOrigin(0.5);
 
     this.add.text(GAME_WIDTH / 2, 270, `FINAL SCORE: ${String(GameManager.state.totalScore).padStart(7, '0')}`, {
-      fontSize: '24px',
-      fontFamily: 'monospace',
+      fontSize: '28px',
+      fontFamily: f.mono,
       color: this.modernist ? this.visualStyle.css.paper : '#ffffff',
     }).setOrigin(0.5);
 
     this.add.text(GAME_WIDTH / 2, 315, `PORTALS: ${GameManager.state.gamesCompleted.length}`, {
       fontSize: '14px',
-      fontFamily: 'monospace',
+      fontFamily: f.mono,
       color: this.modernist ? this.visualStyle.css.muted : '#555577',
     }).setOrigin(0.5);
 
@@ -74,8 +75,8 @@ export class VictoryScene extends Phaser.Scene {
     }
 
     const menuBtn = this.add.text(GAME_WIDTH / 2, 430, '> RETURN TO MENU', {
-      fontSize: '18px',
-      fontFamily: 'monospace',
+      fontSize: '20px',
+      fontFamily: f.ui,
       color: this.modernist ? this.visualStyle.css.paper : '#ffffff',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     menuBtn.on('pointerover', () => menuBtn.setColor(this.modernist ? this.visualStyle.css.vermilion : '#00f0ff'));
