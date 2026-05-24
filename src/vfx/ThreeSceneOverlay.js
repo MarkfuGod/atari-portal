@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getVisualStyle, VISUAL_STYLE_IDS } from '../core/VisualStyle.js';
 
 const FRAME_W = 800;
@@ -7,8 +6,8 @@ const FRAME_H = 600;
 const FOCUS_DEADZONE = 0.04;
 const PERFORMANCE_FPS_KEY = 'performance_fps';
 const ANIMATION_EFFECTS_LEVEL_KEY = 'animation_effects_level';
-const ARM_FPS_SAMPLE_SECONDS = 3;
-const ARM_MIN_FPS = 30;
+const EFFECTS_FPS_SAMPLE_SECONDS = 3;
+const EFFECTS_MIN_FPS = 30;
 
 const THEMES = {
   default: {
@@ -22,10 +21,8 @@ const THEMES = {
     showDepthGrid: false,
     showMazeHologram: false,
     showRiftField: false,
-    showArms: true,
     overlayOpacity: 0.78,
     focusStrength: 1.0,
-    armLift: 0,
   },
   MenuScene: {
     primary: 0x72f6ff,
@@ -38,10 +35,8 @@ const THEMES = {
     showDepthGrid: true,
     showMazeHologram: false,
     showRiftField: false,
-    showArms: true,
     overlayOpacity: 0.5,
     focusStrength: 1.15,
-    armLift: 24,
   },
   PacmanScene: {
     primary: 0x4f8dff,
@@ -54,9 +49,7 @@ const THEMES = {
     showDepthGrid: true,
     showMazeHologram: true,
     showRiftField: false,
-    showArms: true,
     focusStrength: 1.85,
-    armLift: -18,
   },
   BreakoutScene: {
     primary: 0x72f6ff,
@@ -69,8 +62,6 @@ const THEMES = {
     showDepthGrid: true,
     showMazeHologram: false,
     showRiftField: false,
-    showArms: true,
-    armLift: 6,
   },
   SpaceInvadersScene: {
     primary: 0xff5a62,
@@ -83,8 +74,6 @@ const THEMES = {
     showDepthGrid: true,
     showMazeHologram: false,
     showRiftField: false,
-    showArms: true,
-    armLift: 0,
   },
   FroggerScene: {
     primary: 0x72f6ff,
@@ -97,8 +86,6 @@ const THEMES = {
     showDepthGrid: true,
     showMazeHologram: false,
     showRiftField: false,
-    showArms: true,
-    armLift: 22,
   },
   AsteroidsScene: {
     primary: 0xb845ff,
@@ -111,8 +98,6 @@ const THEMES = {
     showDepthGrid: true,
     showMazeHologram: false,
     showRiftField: true,
-    showArms: true,
-    armLift: 8,
   },
   TetrisScene: {
     primary: 0x72f6ff,
@@ -125,8 +110,6 @@ const THEMES = {
     showDepthGrid: true,
     showMazeHologram: false,
     showRiftField: false,
-    showArms: true,
-    armLift: 16,
   },
   SnakeGame: {
     primary: 0x39ff14,
@@ -139,8 +122,6 @@ const THEMES = {
     showDepthGrid: true,
     showMazeHologram: true,
     showRiftField: false,
-    showArms: true,
-    armLift: -4,
   },
   PinballScene: {
     primary: 0xff00e6,
@@ -153,8 +134,6 @@ const THEMES = {
     showDepthGrid: true,
     showMazeHologram: false,
     showRiftField: true,
-    showArms: true,
-    armLift: 14,
   },
   FallDownScene: {
     primary: 0x00f0ff,
@@ -167,8 +146,6 @@ const THEMES = {
     showDepthGrid: true,
     showMazeHologram: false,
     showRiftField: false,
-    showArms: true,
-    armLift: 20,
   },
   GameOverScene: {
     primary: 0xff5a62,
@@ -181,8 +158,6 @@ const THEMES = {
     showDepthGrid: false,
     showMazeHologram: false,
     showRiftField: false,
-    showArms: true,
-    armLift: -10,
   },
   VictoryScene: {
     primary: 0x72f6ff,
@@ -195,8 +170,6 @@ const THEMES = {
     showDepthGrid: false,
     showMazeHologram: false,
     showRiftField: false,
-    showArms: true,
-    armLift: 10,
   },
 };
 
@@ -600,49 +573,13 @@ function createRiftField(primary, secondary, accent) {
   return group;
 }
 
-const ARM_SCALE = 380;
-
-function applyNeonOverlay(model, primary, secondary) {
-  model.traverse((child) => {
-    if (!child.isMesh) return;
-    const orig = child.material;
-    child.material = new THREE.MeshStandardMaterial({
-      map: orig.map || null,
-      normalMap: orig.normalMap || null,
-      metalnessMap: orig.metalnessMap || null,
-      roughnessMap: orig.roughnessMap || null,
-      metalness: 0.85,
-      roughness: 0.25,
-      emissive: new THREE.Color(primary),
-      emissiveIntensity: 0.45,
-      envMapIntensity: 0.6,
-      transparent: true,
-      opacity: 0.96,
-      side: THREE.DoubleSide,
-    });
-    child.material.needsUpdate = true;
-  });
-}
-
-function recolorArm(model, primary, secondary) {
-  model.traverse((child) => {
-    if (!child.isMesh) return;
-    if (child.material.emissive) {
-      child.material.emissive.setHex(primary);
-      child.material.emissiveIntensity = 0.45;
-    }
-  });
-}
-
 const ThreeSceneOverlay = {
   _ready: false,
   _sceneName: 'MenuScene',
-  _armsLoaded: false,
-  _armsLoading: false,
   _animationEffectsLevel: 'high',
-  _armsPerfCheckDone: false,
-  _armsPerfSamples: 0,
-  _armsPerfElapsed: 0,
+  _effectsPerfCheckDone: false,
+  _effectsPerfSamples: 0,
+  _effectsPerfElapsed: 0,
 
   init(vw, vh, pr) {
     if (this._ready) return;
@@ -650,10 +587,10 @@ const ThreeSceneOverlay = {
     this._pr = pr;
     const storedFps = readStoredFps();
     if (!hasEffectsPreference() && storedFps !== null) {
-      writeEffectsLevel(storedFps >= ARM_MIN_FPS ? 'high' : 'low');
+      writeEffectsLevel(storedFps >= EFFECTS_MIN_FPS ? 'high' : 'low');
     }
     this._animationEffectsLevel = readEffectsLevel();
-    this._armsPerfCheckDone = storedFps !== null;
+    this._effectsPerfCheckDone = storedFps !== null;
 
     this.renderer = new THREE.WebGLRenderer({
       alpha: true,
@@ -693,12 +630,6 @@ const ThreeSceneOverlay = {
     this._focusTarget = { x: 0, y: 0 };
     this._focus = { x: 0, y: 0 };
 
-    this.armLeft = new THREE.Group();
-    this.armRight = new THREE.Group();
-    this.armLeft.visible = false;
-    this.armRight.visible = false;
-    this.root.add(this.armLeft, this.armRight);
-
     this.cornerMonitors = new THREE.Group();
     this.cornerMonitors.add(
       createScreen(112, 100, -FRAME_W / 2 - 84, 220, -0.16, 'monitor', THEMES.MenuScene.primary, THEMES.MenuScene.secondary),
@@ -728,77 +659,20 @@ const ThreeSceneOverlay = {
     this.root.add(this.depthGrid, this.mazeHologram, this.riftField);
 
     this._applyTheme(this._sceneName);
-    this._maybeLoadArms();
-  },
-
-  _shouldShowArms() {
-    if (getVisualStyle().id === VISUAL_STYLE_IDS.MODERNIST) return false;
-    const theme = this._theme || THEMES[this._sceneName] || THEMES.default;
-    return this._animationEffectsLevel === 'high' && !!theme.showArms;
-  },
-
-  _maybeLoadArms() {
-    if (!this._ready || this._animationEffectsLevel !== 'high' || this._armsLoaded || this._armsLoading) return;
-    if (!this._armsPerfCheckDone) return;
-    this._loadArms();
-  },
-
-  _loadArms() {
-    this._armsLoading = true;
-    const loader = new GLTFLoader();
-    loader.load('assets/robotic_arm_lite.glb', (gltf) => {
-      const armModel = gltf.scene;
-      armModel.scale.setScalar(ARM_SCALE);
-
-      const box = new THREE.Box3().setFromObject(armModel);
-      const center = box.getCenter(new THREE.Vector3());
-
-      const leftClone = armModel.clone(true);
-      leftClone.position.set(
-        -(FRAME_W / 2 + 130) - center.x,
-        60 - center.y,
-        40
-      );
-      leftClone.userData.baseX = leftClone.position.x;
-      leftClone.rotation.set(0, 0, 0.65);
-      applyNeonOverlay(leftClone, THEMES.MenuScene.primary, THEMES.MenuScene.secondary);
-      this.armLeft.add(leftClone);
-
-      const rightClone = armModel.clone(true);
-      rightClone.scale.x *= -1;
-      rightClone.position.set(
-        (FRAME_W / 2 + 130) + center.x,
-        60 - center.y,
-        40
-      );
-      rightClone.userData.baseX = rightClone.position.x;
-      rightClone.rotation.set(0, 0, -0.65);
-      applyNeonOverlay(rightClone, THEMES.MenuScene.primary, THEMES.MenuScene.secondary);
-      this.armRight.add(rightClone);
-
-      this.armLeft.visible = this._shouldShowArms();
-      this.armRight.visible = this._shouldShowArms();
-      this._armsLoaded = true;
-      this._armsLoading = false;
-
-      this._applyTheme(this._sceneName);
-    }, undefined, () => {
-      this._armsLoading = false;
-    });
   },
 
   _sampleStartupFps(deltaSeconds) {
-    if (this._armsPerfCheckDone) return;
-    this._armsPerfElapsed += deltaSeconds;
-    this._armsPerfSamples += 1;
-    if (this._armsPerfElapsed < ARM_FPS_SAMPLE_SECONDS) return;
+    if (this._effectsPerfCheckDone) return;
+    this._effectsPerfElapsed += deltaSeconds;
+    this._effectsPerfSamples += 1;
+    if (this._effectsPerfElapsed < EFFECTS_FPS_SAMPLE_SECONDS) return;
 
-    const fps = this._armsPerfSamples / this._armsPerfElapsed;
+    const fps = this._effectsPerfSamples / this._effectsPerfElapsed;
     writeStoredFps(fps);
-    this._armsPerfCheckDone = true;
+    this._effectsPerfCheckDone = true;
 
     if (!hasEffectsPreference()) {
-      this._animationEffectsLevel = fps >= ARM_MIN_FPS ? 'high' : 'low';
+      this._animationEffectsLevel = fps >= EFFECTS_MIN_FPS ? 'high' : 'low';
       writeEffectsLevel(this._animationEffectsLevel);
       this._emitEffectsLevelChanged();
     } else {
@@ -806,7 +680,6 @@ const ThreeSceneOverlay = {
     }
 
     this._applyTheme(this._sceneName);
-    this._maybeLoadArms();
   },
 
   getAnimationEffectsLevel() {
@@ -818,7 +691,6 @@ const ThreeSceneOverlay = {
     writeEffectsLevel(this._animationEffectsLevel);
     this._emitEffectsLevelChanged();
     this._applyTheme(this._sceneName);
-    this._maybeLoadArms();
   },
 
   _emitEffectsLevelChanged() {
@@ -865,19 +737,10 @@ const ThreeSceneOverlay = {
         showDepthGrid: false,
         showMazeHologram: false,
         showRiftField: false,
-        showArms: false,
         overlayOpacity: 0,
       }
       : baseTheme;
     this._theme = theme;
-
-    if (this._armsLoaded) {
-      recolorArm(this.armLeft, theme.primary, theme.secondary);
-      recolorArm(this.armRight, theme.primary, theme.secondary);
-      const visible = this._shouldShowArms();
-      this.armLeft.visible = visible;
-      this.armRight.visible = visible;
-    }
 
     this.keyLight.color.setHex(theme.primary);
     this.fillLight.color.setHex(theme.secondary);
@@ -956,24 +819,6 @@ const ThreeSceneOverlay = {
     this.camera.position.y = -fy * 96;
     this.camera.position.z = this._baseCameraZ - Math.abs(fx) * 78 - Math.abs(fy) * 48;
     this.camera.lookAt(fx * 62, -fy * 42, 0);
-
-    if (this._armsLoaded) {
-      const phase = time * 0.6;
-
-      const leftModel = this.armLeft.children[0];
-      const rightModel = this.armRight.children[0];
-
-      if (leftModel) {
-        leftModel.rotation.z = 0.65 + Math.sin(phase) * 0.12 + beat * 0.08 + fx * 0.22 - fy * 0.08;
-        leftModel.position.y = (60 + theme.armLift) + Math.sin(phase * 0.7) * 12 + fy * 34;
-        leftModel.position.x = (leftModel.userData.baseX ?? leftModel.position.x) + fx * 72;
-      }
-      if (rightModel) {
-        rightModel.rotation.z = -0.65 - Math.sin(phase + 1.2) * 0.12 - beat * 0.08 + fx * 0.22 + fy * 0.08;
-        rightModel.position.y = (60 + theme.armLift) + Math.sin(phase * 0.7 + 1.5) * 12 + fy * 34;
-        rightModel.position.x = (rightModel.userData.baseX ?? rightModel.position.x) + fx * 72;
-      }
-    }
 
     this.cornerMonitors.children.forEach((screen, idx) => {
       screen.position.x += ((idx % 2 === 0 ? -1 : 1) * fx * 18 - screen.position.x + (idx % 2 === 0 ? -FRAME_W / 2 - 84 : FRAME_W / 2 + 84)) * 0.08;
