@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../config.js';
 import SFX from '../core/SFXManager.js';
 
-const ENTRY_VIDEO = '/assets/video/entry.mp4';
+const ENTRY_VIDEO = `${import.meta.env.BASE_URL}assets/video/entry.mp4`;
 
 export class VideoIntroScene extends Phaser.Scene {
   constructor() {
