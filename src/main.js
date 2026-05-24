@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from './config.js';
 import { BootScene } from './ui/BootScene.js';
+import { VideoIntroScene } from './ui/VideoIntroScene.js';
 import { MenuScene } from './ui/MenuScene.js';
 import { HUDScene } from './ui/HUDScene.js';
 import { PauseScene } from './ui/PauseScene.js';
@@ -37,6 +38,7 @@ const config = {
   },
   scene: [
     BootScene,
+    VideoIntroScene,
     MenuScene,
     HUDScene,
     PauseScene,
