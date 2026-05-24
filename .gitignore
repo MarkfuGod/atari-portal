@@ -6,3 +6,10 @@ release/
 *.cursor
 .idea/
 unused/
+
+# Local generated deliverables
+\ final_pre.pdf
+executables_download_link.txt
+executables_download_link.txt.zip
+final_report.pdf
+MODERNIST_ROLLOUT.md
