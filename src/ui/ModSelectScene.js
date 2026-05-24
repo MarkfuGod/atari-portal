@@ -4,6 +4,7 @@ import { GameManager } from '../core/GameManager.js';
 import SFX from '../core/SFXManager.js';
 import NeonGlow from '../vfx/NeonGlow.js';
 import AudioBackground from '../vfx/AudioBackground.js';
+import { cssColor, getVisualStyle, isModernistStyle } from '../core/VisualStyle.js';
 
 const cyan = '#00f0ff';
 const magenta = '#ff00e6';
@@ -15,24 +16,31 @@ export class ModSelectScene extends Phaser.Scene {
   }
 
   create(data) {
+    this.visualStyle = getVisualStyle();
+    this.palette = this.visualStyle.palette;
+    this.modernist = isModernistStyle();
     this.toScene = data.to;
     this.fromScene = data.from;
     this._sleepOverlay('HUDScene');
     this._sleepOverlay('CRTOverlay');
     this.scene.bringToTop();
-    this.cameras.main.setBackgroundColor(COLORS.BG_DARK);
+    this.cameras.main.setBackgroundColor(this.palette.terminal);
     this.cameras.main.fadeIn(400);
     AudioBackground.setScene('ModSelectScene');
 
     this.drawGridBackground();
 
     const title = this.add.text(GAME_WIDTH / 2, 60, 'MOD SELECT', {
-      fontSize: '28px', fontFamily: 'monospace', color: cyan,
+      fontSize: this.modernist ? '24px' : '28px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.paper : cyan,
     }).setOrigin(0.5);
-    NeonGlow.applyTextGlow(this, title, COLORS.NEON_CYAN);
+    if (!this.modernist) NeonGlow.applyTextGlow(this, title, COLORS.NEON_CYAN);
 
     this.add.text(GAME_WIDTH / 2, 95, 'Choose an upgrade for your run', {
-      fontSize: '12px', fontFamily: 'monospace', color: '#555577',
+      fontSize: '12px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.muted : '#555577',
     }).setOrigin(0.5);
 
     const modSystem = GameManager.modSystem;
@@ -67,45 +75,72 @@ export class ModSelectScene extends Phaser.Scene {
     });
 
     const skipBtn = this.add.text(GAME_WIDTH / 2, 480, '> SKIP', {
-      fontSize: '14px', fontFamily: 'monospace', color: '#555577',
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.paper : '#555577',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    skipBtn.on('pointerover', () => skipBtn.setColor(cyan));
-    skipBtn.on('pointerout', () => skipBtn.setColor('#555577'));
+    skipBtn.on('pointerover', () => skipBtn.setColor(this.modernist ? this.visualStyle.css.vermilion : cyan));
+    skipBtn.on('pointerout', () => skipBtn.setColor(this.modernist ? this.visualStyle.css.paper : '#555577'));
     skipBtn.on('pointerdown', () => this.proceed());
 
     this.drawActiveMods();
   }
 
   createModCard(cx, cy, w, h, mod) {
+    const p = this.palette;
+    const css = this.visualStyle.css;
+    const modernist = this.modernist;
     const g = this.add.graphics();
-    g.fillStyle(COLORS.HUD_BG, 0.9);
+    g.fillStyle(modernist ? p.paper : COLORS.HUD_BG, modernist ? 0.96 : 0.9);
     g.fillRect(cx - w / 2, cy - h / 2, w, h);
-    NeonGlow.strokeRect(g, cx - w / 2, cy - h / 2, w, h, COLORS.NEON_CYAN, 1, 0.4);
+    if (modernist) {
+      g.lineStyle(1, p.paperDark, 0.95);
+      g.strokeRect(cx - w / 2, cy - h / 2, w, h);
+    } else {
+      NeonGlow.strokeRect(g, cx - w / 2, cy - h / 2, w, h, COLORS.NEON_CYAN, 1, 0.4);
+    }
 
-    const categoryColors = {
-      offensive: COLORS.NEON_RED,
-      defensive: COLORS.NEON_BLUE,
-      utility: COLORS.NEON_GREEN,
-      chaos: COLORS.NEON_MAGENTA,
-    };
+    const categoryColors = modernist
+      ? {
+        offensive: p.vermilion,
+        defensive: p.blue,
+        utility: p.green,
+        chaos: p.violet,
+      }
+      : {
+        offensive: COLORS.NEON_RED,
+        defensive: COLORS.NEON_BLUE,
+        utility: COLORS.NEON_GREEN,
+        chaos: COLORS.NEON_MAGENTA,
+      };
     const catColor = categoryColors[mod.category] || COLORS.NEON_CYAN;
-    const catHex = '#' + catColor.toString(16).padStart(6, '0');
+    const catHex = cssColor(catColor);
+
+    if (modernist) {
+      g.fillStyle(catColor, 1);
+      g.fillRect(cx - w / 2, cy - h / 2, w, 8);
+      g.fillRect(cx - w / 2, cy - h / 2, 22, h);
+    }
 
     this.add.text(cx, cy - h / 2 + 20, mod.category.toUpperCase(), {
       fontSize: '9px', fontFamily: 'monospace', color: catHex,
     }).setOrigin(0.5);
 
     try {
-      const icon = this.add.image(cx, cy - 20, mod.icon).setDisplaySize(32, 32).setTint(catColor);
+      this.add.image(cx, cy - 20, mod.icon).setDisplaySize(32, 32).setTint(catColor);
     } catch (_) {}
 
     const nameText = this.add.text(cx, cy + 20, mod.name, {
-      fontSize: '14px', fontFamily: 'monospace', color: '#ffffff',
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      color: modernist ? css.ink : '#ffffff',
     }).setOrigin(0.5);
-    NeonGlow.applyTextGlow(this, nameText, catColor);
+    if (!modernist) NeonGlow.applyTextGlow(this, nameText, catColor);
 
     this.add.text(cx, cy + 50, mod.description, {
-      fontSize: '10px', fontFamily: 'monospace', color: '#888899',
+      fontSize: '10px',
+      fontFamily: 'monospace',
+      color: modernist ? '#4f4a3f' : '#888899',
       wordWrap: { width: w - 20 },
       align: 'center',
     }).setOrigin(0.5);
@@ -115,16 +150,34 @@ export class ModSelectScene extends Phaser.Scene {
 
     hitArea.on('pointerover', () => {
       g.clear();
-      g.fillStyle(COLORS.HUD_BG, 0.9);
+      g.fillStyle(modernist ? p.paper : COLORS.HUD_BG, modernist ? 1 : 0.9);
       g.fillRect(cx - w / 2, cy - h / 2, w, h);
-      NeonGlow.strokeRect(g, cx - w / 2, cy - h / 2, w, h, catColor, 2, 0.8);
+      if (modernist) {
+        g.fillStyle(catColor, 1);
+        g.fillRect(cx - w / 2, cy - h / 2, w, 8);
+        g.fillRect(cx - w / 2, cy - h / 2, 30, h);
+        g.lineStyle(2, catColor, 1);
+        g.strokeRect(cx - w / 2, cy - h / 2, w, h);
+        nameText.setColor(catHex);
+      } else {
+        NeonGlow.strokeRect(g, cx - w / 2, cy - h / 2, w, h, catColor, 2, 0.8);
+      }
     });
 
     hitArea.on('pointerout', () => {
       g.clear();
-      g.fillStyle(COLORS.HUD_BG, 0.9);
+      g.fillStyle(modernist ? p.paper : COLORS.HUD_BG, modernist ? 0.96 : 0.9);
       g.fillRect(cx - w / 2, cy - h / 2, w, h);
-      NeonGlow.strokeRect(g, cx - w / 2, cy - h / 2, w, h, COLORS.NEON_CYAN, 1, 0.4);
+      if (modernist) {
+        g.fillStyle(catColor, 1);
+        g.fillRect(cx - w / 2, cy - h / 2, w, 8);
+        g.fillRect(cx - w / 2, cy - h / 2, 22, h);
+        g.lineStyle(1, p.paperDark, 0.95);
+        g.strokeRect(cx - w / 2, cy - h / 2, w, h);
+        nameText.setColor(css.ink);
+      } else {
+        NeonGlow.strokeRect(g, cx - w / 2, cy - h / 2, w, h, COLORS.NEON_CYAN, 1, 0.4);
+      }
     });
 
     hitArea.on('pointerdown', () => {
@@ -153,12 +206,16 @@ export class ModSelectScene extends Phaser.Scene {
     if (mods.length === 0) return;
 
     this.add.text(GAME_WIDTH / 2, 520, 'ACTIVE MODS:', {
-      fontSize: '10px', fontFamily: 'monospace', color: '#444466',
+      fontSize: '10px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.muted : '#444466',
     }).setOrigin(0.5);
 
     const names = mods.map(m => m.name).join(' | ');
     this.add.text(GAME_WIDTH / 2, 540, names, {
-      fontSize: '10px', fontFamily: 'monospace', color: '#666688',
+      fontSize: '10px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.paper : '#666688',
     }).setOrigin(0.5);
   }
 
@@ -172,6 +229,24 @@ export class ModSelectScene extends Phaser.Scene {
 
   drawGridBackground() {
     const g = this.add.graphics();
+    if (this.modernist) {
+      const p = this.palette;
+      g.fillStyle(p.terminal, 1);
+      g.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      g.fillStyle(p.paper, 0.08);
+      g.fillRect(28, 30, GAME_WIDTH - 56, GAME_HEIGHT - 72);
+      g.lineStyle(1, p.faint, 0.48);
+      for (let x = 40; x < GAME_WIDTH; x += 32) {
+        g.lineBetween(x, 42, x, GAME_HEIGHT - 46);
+      }
+      for (let y = 48; y < GAME_HEIGHT - 46; y += 32) {
+        g.lineBetween(40, y, GAME_WIDTH - 40, y);
+      }
+      g.lineStyle(2, p.vermilion, 0.9);
+      g.lineBetween(52, 118, GAME_WIDTH - 52, 118);
+      return;
+    }
+
     g.lineStyle(1, COLORS.GRID_LINE, 0.2);
     for (let x = 0; x < GAME_WIDTH; x += 40) {
       g.strokeLineShape(new Phaser.Geom.Line(x, 0, x, GAME_HEIGHT));

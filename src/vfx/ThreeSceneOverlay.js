@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { getVisualStyle, VISUAL_STYLE_IDS } from '../core/VisualStyle.js';
 
 const FRAME_W = 800;
 const FRAME_H = 600;
@@ -848,7 +849,17 @@ const ThreeSceneOverlay = {
   },
 
   _applyTheme(sceneName) {
-    const theme = THEMES[sceneName] || THEMES.default;
+    const baseTheme = THEMES[sceneName] || THEMES.default;
+    const style = getVisualStyle();
+    const theme = style.id === VISUAL_STYLE_IDS.MODERNIST
+      ? {
+        ...baseTheme,
+        primary: style.palette.cyan,
+        secondary: sceneName === 'GameOverScene' ? style.palette.vermilion : style.palette.paper,
+        accent: style.palette.mustard,
+        overlayOpacity: Math.min(baseTheme.overlayOpacity ?? THEMES.default.overlayOpacity, 0.46),
+      }
+      : baseTheme;
     this._theme = theme;
 
     if (this._armsLoaded) {

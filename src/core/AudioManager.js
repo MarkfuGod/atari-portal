@@ -1,17 +1,17 @@
 import AudioReactive from './AudioReactiveSystem.js';
 
 const SCENE_BGM_MAP = {
-  MenuScene: 'bgm_menu',
-  PacmanScene: 'bgm_reassurance',
-  FroggerScene: 'bgm_reassurance',
-  SpaceInvadersScene: 'bgm_intense',
-  AsteroidsScene: 'bgm_intense',
-  BreakoutScene: 'bgm_rock',
-  TetrisScene: 'bgm_epic',
-  TransitionScene: null,
-  ModSelectScene: null,
-  GameOverScene: null,
-  VictoryScene: 'bgm_epic',
+  MenuScene:          ['bgm_menu', 'bgm_menu_alt'],
+  PacmanScene:        ['bgm_reassurance', 'bgm_reassurance_alt'],
+  FroggerScene:       ['bgm_reassurance', 'bgm_reassurance_alt'],
+  SpaceInvadersScene: ['bgm_intense', 'bgm_intense_alt'],
+  AsteroidsScene:     ['bgm_intense', 'bgm_intense_alt'],
+  BreakoutScene:      ['bgm_rock', 'bgm_rock_alt'],
+  TetrisScene:        ['bgm_epic', 'bgm_epic_alt'],
+  VictoryScene:       ['bgm_epic', 'bgm_epic_alt'],
+  TransitionScene:    null,
+  ModSelectScene:     null,
+  GameOverScene:      null,
 };
 
 const BGM = {
@@ -30,28 +30,37 @@ const BGM = {
   },
 
   playForScene(scene, sceneKey) {
-    const targetKey = SCENE_BGM_MAP[sceneKey];
-    if (targetKey === undefined) {
+    const mapping = SCENE_BGM_MAP[sceneKey];
+    if (mapping === undefined) {
       console.log('[BGM] no mapping for scene', sceneKey);
       return;
     }
 
-    if (targetKey === null) {
+    if (mapping === null) {
       console.log('[BGM] scene intentionally has no BGM', sceneKey);
       return;
     }
 
-    if (!scene.cache.audio.exists(targetKey)) {
+    const candidates = (Array.isArray(mapping) ? mapping : [mapping])
+      .filter((k) => scene.cache.audio.exists(k));
+
+    if (!candidates.length) {
+      console.log('[BGM] no loaded variants for scene', sceneKey, mapping);
       this.stop(scene);
       return;
     }
 
-    if (this._currentKey === targetKey && this._current && this._current.isPlaying) {
-      console.log('[BGM] already playing target track', { sceneKey, targetKey });
+    if (this._currentKey && candidates.includes(this._currentKey)
+        && this._current && this._current.isPlaying) {
+      console.log('[BGM] keeping current variant', {
+        sceneKey,
+        currentKey: this._currentKey,
+      });
       return;
     }
 
-    console.log('[BGM] playForScene', { sceneKey, targetKey });
+    const targetKey = candidates[Math.floor(Math.random() * candidates.length)];
+    console.log('[BGM] playForScene', { sceneKey, targetKey, pool: candidates });
     this.crossfadeTo(scene, targetKey);
   },
 

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, AUDIO_REACTIVE as AR } from '../config.js';
 import AudioReactive from '../core/AudioReactiveSystem.js';
+import { getVisualStyle, isModernistStyle } from '../core/VisualStyle.js';
 
 export class CRTOverlay extends Phaser.Scene {
   constructor() {
@@ -9,9 +10,12 @@ export class CRTOverlay extends Phaser.Scene {
 
   create() {
     this.scene.bringToTop();
+    this.visualStyle = getVisualStyle();
+    this.palette = this.visualStyle.palette;
+    this.modernist = isModernistStyle();
 
     this.scanlineGfx = this.add.graphics().setDepth(9000);
-    this.drawScanlines(AR.SCANLINE_ALPHA_MIN);
+    this.drawScanlines(this.modernist ? AR.SCANLINE_ALPHA_MIN * 0.65 : AR.SCANLINE_ALPHA_MIN);
 
     this.vignetteGfx = this.add.graphics().setDepth(9001);
     this.drawVignette();
@@ -25,29 +29,29 @@ export class CRTOverlay extends Phaser.Scene {
     this.beatFlash = this.add.rectangle(
       GAME_WIDTH / 2, GAME_HEIGHT / 2,
       GAME_WIDTH, GAME_HEIGHT,
-      COLORS.NEON_CYAN, 0
+      this.modernist ? this.palette.paper : COLORS.NEON_CYAN, 0
     ).setDepth(9003).setBlendMode(Phaser.BlendModes.ADD);
 
     this.chromaL = this.add.rectangle(
       GAME_WIDTH / 2 - 2, GAME_HEIGHT / 2,
       GAME_WIDTH, GAME_HEIGHT,
-      COLORS.NEON_CYAN, 0
+      this.modernist ? this.palette.cyan : COLORS.NEON_CYAN, 0
     ).setDepth(9004).setBlendMode(Phaser.BlendModes.ADD);
 
     this.chromaR = this.add.rectangle(
       GAME_WIDTH / 2 + 2, GAME_HEIGHT / 2,
       GAME_WIDTH, GAME_HEIGHT,
-      COLORS.NEON_MAGENTA, 0
+      this.modernist ? this.palette.vermilion : COLORS.NEON_MAGENTA, 0
     ).setDepth(9004).setBlendMode(Phaser.BlendModes.ADD);
 
     this.energyTint = this.add.rectangle(
       GAME_WIDTH / 2, GAME_HEIGHT / 2,
       GAME_WIDTH, GAME_HEIGHT,
-      COLORS.NEON_PURPLE, 0
+      this.modernist ? this.palette.violet : COLORS.NEON_PURPLE, 0
     ).setDepth(9005).setBlendMode(Phaser.BlendModes.ADD);
 
     this._scanlineDirty = false;
-    this._lastScanAlpha = AR.SCANLINE_ALPHA_MIN;
+    this._lastScanAlpha = this.modernist ? AR.SCANLINE_ALPHA_MIN * 0.65 : AR.SCANLINE_ALPHA_MIN;
     this._intensity = 0.5;
 
     this.signalLossOverlay = this.add.rectangle(
@@ -78,7 +82,7 @@ export class CRTOverlay extends Phaser.Scene {
     const ar = AudioReactive;
     if (!ar.energy && !ar.isBeat) return;
 
-    const intMult = 0.5 + this._intensity * 0.5;
+    const intMult = (0.5 + this._intensity * 0.5) * (this.modernist ? 0.72 : 1);
 
     const scanAlpha = Phaser.Math.Linear(
       AR.SCANLINE_ALPHA_MIN * intMult, AR.SCANLINE_ALPHA_MAX * intMult, ar.bassSmooth
@@ -89,7 +93,9 @@ export class CRTOverlay extends Phaser.Scene {
     }
 
     if (ar.isBeat) {
-      const color = [COLORS.NEON_CYAN, COLORS.NEON_MAGENTA, COLORS.NEON_PURPLE][
+      const color = (this.modernist
+        ? [this.palette.paper, this.palette.cyan, this.palette.vermilion]
+        : [COLORS.NEON_CYAN, COLORS.NEON_MAGENTA, COLORS.NEON_PURPLE])[
         Math.floor(Math.random() * 3)
       ];
       this.beatFlash.setFillStyle(color, 1);
@@ -112,18 +118,19 @@ export class CRTOverlay extends Phaser.Scene {
     const tintAlpha = ar.energy * AR.ENERGY_TINT_ALPHA * intMult;
     this.energyTint.setAlpha(tintAlpha);
     if (ar.bass > ar.mid && ar.bass > ar.treble) {
-      this.energyTint.setFillStyle(COLORS.NEON_MAGENTA, 1);
+      this.energyTint.setFillStyle(this.modernist ? this.palette.vermilion : COLORS.NEON_MAGENTA, 1);
     } else if (ar.mid > ar.treble) {
-      this.energyTint.setFillStyle(COLORS.NEON_PURPLE, 1);
+      this.energyTint.setFillStyle(this.modernist ? this.palette.violet : COLORS.NEON_PURPLE, 1);
     } else {
-      this.energyTint.setFillStyle(COLORS.NEON_CYAN, 1);
+      this.energyTint.setFillStyle(this.modernist ? this.palette.cyan : COLORS.NEON_CYAN, 1);
     }
   }
 
   drawScanlines(alpha = 0.12) {
     const g = this.scanlineGfx;
     g.clear();
-    for (let y = 0; y < GAME_HEIGHT; y += 3) {
+    const step = this.modernist ? 4 : 3;
+    for (let y = 0; y < GAME_HEIGHT; y += step) {
       g.fillStyle(0x000000, alpha);
       g.fillRect(0, y, GAME_WIDTH, 1);
     }
@@ -133,10 +140,10 @@ export class CRTOverlay extends Phaser.Scene {
     const g = this.vignetteGfx;
     const w = GAME_WIDTH;
     const h = GAME_HEIGHT;
-    const edgeSize = 80;
+    const edgeSize = this.modernist ? 58 : 80;
 
     for (let i = 0; i < edgeSize; i++) {
-      const alpha = 0.35 * (1 - i / edgeSize);
+      const alpha = (this.modernist ? 0.24 : 0.35) * (1 - i / edgeSize);
       g.fillStyle(0x000000, alpha);
       g.fillRect(0, i, w, 1);
       g.fillRect(0, h - 1 - i, w, 1);

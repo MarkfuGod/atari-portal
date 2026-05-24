@@ -6,6 +6,7 @@ import BGM from '../core/AudioManager.js';
 import NeonGlow from '../vfx/NeonGlow.js';
 import GlitchEffect from '../vfx/GlitchEffect.js';
 import AudioBackground from '../vfx/AudioBackground.js';
+import { getVisualStyle, isModernistStyle } from '../core/VisualStyle.js';
 
 export class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -13,6 +14,9 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   create() {
+    this.visualStyle = getVisualStyle();
+    this.palette = this.visualStyle.palette;
+    this.modernist = isModernistStyle();
     try { this.scene.stop('HUDScene'); } catch (_) {}
     try { this.scene.stop('CRTOverlay'); } catch (_) {}
     this.scene.bringToTop();
@@ -20,20 +24,31 @@ export class GameOverScene extends Phaser.Scene {
     SFX.gameOver();
     BGM.stop(this);
     this.cameras.main.fadeIn(500);
-    this.cameras.main.setBackgroundColor(COLORS.BG_DARK);
+    this.cameras.main.setBackgroundColor(this.palette.terminal);
     AudioBackground.setScene('GameOverScene');
 
     GlitchEffect.screenTear(this, 800);
 
-    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, COLORS.BG_DARK, 0.95);
+    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, this.palette.terminal, 0.95);
 
     const borderG = this.add.graphics();
-    NeonGlow.strokeRect(borderG, 150, 120, 500, 360, COLORS.NEON_RED, 1, 0.4);
+    if (this.modernist) {
+      borderG.fillStyle(this.palette.paper, 0.05);
+      borderG.fillRect(150, 120, 500, 360);
+      borderG.lineStyle(2, this.palette.vermilion, 0.9);
+      borderG.strokeRect(150, 120, 500, 360);
+      borderG.fillStyle(this.palette.vermilion, 1);
+      borderG.fillRect(150, 120, 500, 8);
+    } else {
+      NeonGlow.strokeRect(borderG, 150, 120, 500, 360, COLORS.NEON_RED, 1, 0.4);
+    }
 
     const title = this.add.text(GAME_WIDTH / 2, 170, 'CONNECTION LOST', {
-      fontSize: '38px', fontFamily: 'monospace', color: '#ff1744',
+      fontSize: '38px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.vermilion : '#ff1744',
     }).setOrigin(0.5);
-    NeonGlow.applyTextGlow(this, title, COLORS.NEON_RED);
+    if (!this.modernist) NeonGlow.applyTextGlow(this, title, COLORS.NEON_RED);
 
     this.tweens.add({
       targets: title,
@@ -42,23 +57,31 @@ export class GameOverScene extends Phaser.Scene {
     });
 
     this.add.text(GAME_WIDTH / 2, 250, `SCORE: ${String(GameManager.state.totalScore).padStart(7, '0')}`, {
-      fontSize: '22px', fontFamily: 'monospace', color: '#00f0ff',
+      fontSize: '22px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.paper : '#00f0ff',
     }).setOrigin(0.5);
 
     this.add.text(GAME_WIDTH / 2, 290, `SECTORS: ${GameManager.state.gamesCompleted.length}  |  CREDITS: ${GameManager.state.coins}`, {
-      fontSize: '14px', fontFamily: 'monospace', color: '#555577',
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.muted : '#555577',
     }).setOrigin(0.5);
 
     const hs = GameManager.getHighScore();
     this.add.text(GAME_WIDTH / 2, 325, `BEST: ${String(hs).padStart(7, '0')}`, {
-      fontSize: '14px', fontFamily: 'monospace', color: '#b845ff',
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.mustard : '#b845ff',
     }).setOrigin(0.5);
 
     const restart = this.add.text(GAME_WIDTH / 2, 410, '> RECONNECT', {
-      fontSize: '18px', fontFamily: 'monospace', color: '#ffffff',
+      fontSize: '18px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.paper : '#ffffff',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    restart.on('pointerover', () => restart.setColor('#00f0ff'));
-    restart.on('pointerout', () => restart.setColor('#ffffff'));
+    restart.on('pointerover', () => restart.setColor(this.modernist ? this.visualStyle.css.vermilion : '#00f0ff'));
+    restart.on('pointerout', () => restart.setColor(this.modernist ? this.visualStyle.css.paper : '#ffffff'));
     restart.on('pointerdown', () => this.toMenu());
 
     this.input.keyboard.on('keydown-ENTER', () => this.toMenu());

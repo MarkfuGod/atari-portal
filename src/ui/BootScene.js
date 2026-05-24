@@ -2,6 +2,21 @@ import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../config.js';
 import SFX from '../core/SFXManager.js';
 
+const BGM_BASE = `${import.meta.env.BASE_URL}assets/audio/BGM/`;
+
+const BGM_TRACKS = [
+  { key: 'bgm_menu',           file: 'Neon-Insert-Coin.mp3' },
+  { key: 'bgm_menu_alt',       file: 'BGM_menu.mp3' },
+  { key: 'bgm_reassurance',    file: 'Playground-in-the-Nebula.mp3' },
+  { key: 'bgm_reassurance_alt',file: 'BGM_reassurance.mp3' },
+  { key: 'bgm_intense',        file: 'Portal-Run.mp3' },
+  { key: 'bgm_intense_alt',    file: 'BGM_intense.mp3' },
+  { key: 'bgm_rock',           file: 'Pixel-Hearts-Skybound.mp3' },
+  { key: 'bgm_rock_alt',       file: 'BGM_rock.mp3' },
+  { key: 'bgm_epic',           file: 'Auto-Pilot-Heart.mp3' },
+  { key: 'bgm_epic_alt',       file: 'BGM_Epic.mp3' },
+];
+
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('BootScene');
@@ -10,6 +25,19 @@ export class BootScene extends Phaser.Scene {
   preload() {
     SFX.init();
     this.generateTextures();
+    this.preloadBGM();
+  }
+
+  preloadBGM() {
+    BGM_TRACKS.forEach(({ key, file }) => {
+      this.load.audio(key, `${BGM_BASE}${encodeURI(file)}`);
+    });
+
+    this.load.on('loaderror', (file) => {
+      if (file?.key?.startsWith('bgm_')) {
+        console.warn('[BGM] failed to load', file.key, file.src);
+      }
+    });
   }
 
   generateTextures() {

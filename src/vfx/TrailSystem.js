@@ -1,4 +1,5 @@
 import { COLORS } from '../config.js';
+import { isModernistStyle, getVisualStyle } from '../core/VisualStyle.js';
 
 const TrailSystem = {
   _trails: new Map(),
@@ -45,8 +46,22 @@ const TrailSystem = {
     const y = target.y;
     const angle = target.angle ?? 0;
 
+    const modernist = isModernistStyle();
     let ghost;
-    if (config.useSprite && config.textureKey) {
+    if (modernist) {
+      // Print trail: dashed ink polyline behind the target. One short
+      // segment per ghost spawn, length proportional to target size.
+      const p = getVisualStyle().palette;
+      const sz = config.size ?? (target.width ? Math.max(target.width, target.height) * 0.5 : 8);
+      const len = Math.max(4, sz * 0.9);
+      const rad = (target.rotation ?? (angle * Math.PI / 180)) + Math.PI;
+      ghost = scene.add.graphics();
+      ghost.lineStyle(1, p.ink, 0.65);
+      ghost.lineBetween(0, 0, Math.cos(rad) * len, Math.sin(rad) * len);
+      ghost.setPosition(x, y);
+      ghost.setDepth(config.depth);
+      ghost.setAlpha(0.55);
+    } else if (config.useSprite && config.textureKey) {
       ghost = scene.add.image(x, y, config.textureKey);
       ghost.setTint(config.color);
       ghost.setAngle(angle);
@@ -69,9 +84,11 @@ const TrailSystem = {
       }
     }
 
-    ghost.setDepth(config.depth);
-    ghost.setAlpha(0.6);
-    if (ghost.setBlendMode) ghost.setBlendMode(Phaser.BlendModes.ADD);
+    if (!modernist) {
+      ghost.setDepth(config.depth);
+      ghost.setAlpha(0.6);
+      if (ghost.setBlendMode) ghost.setBlendMode(Phaser.BlendModes.ADD);
+    }
 
     trail.ghosts.push(ghost);
 

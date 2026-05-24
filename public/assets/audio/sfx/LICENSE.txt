@@ -1,0 +1,5 @@
+Modern sci-fi sound effects from "60 CC0 Sci-Fi SFX" on OpenGameArt.
+
+Source: https://opengameart.org/content/60-cc0-sci-fi-sfx
+License: Creative Commons CC0 1.0 Universal / Public Domain
+Files used: selected .ogg files from 60-sci-fi-sfx_0.zip

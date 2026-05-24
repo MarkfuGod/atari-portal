@@ -8,6 +8,7 @@ import ArcadeFX from '../../vfx/ArcadeFX.js';
 import TrailSystem from '../../vfx/TrailSystem.js';
 import DebrisSystem from '../../vfx/DebrisSystem.js';
 import CyberSceneFX from '../../vfx/CyberSceneFX.js';
+import PosterSceneFX from '../../vfx/PosterSceneFX.js';
 
 const ROTATION_SPEED = 4;
 const THRUST = 220;
@@ -59,6 +60,10 @@ export class AsteroidsScene extends BaseGameScene {
   }
 
   drawAsteroidArena() {
+    if (this.modernist) {
+      this.drawModernistArena();
+      return;
+    }
     CyberSceneFX.drawCircuitBackdrop(this, {
       primary: COLORS.NEON_PURPLE,
       secondary: COLORS.NEON_CYAN,
@@ -109,9 +114,80 @@ export class AsteroidsScene extends BaseGameScene {
     });
   }
 
+  drawModernistArena() {
+    const p = this.palette;
+    this.cameras.main.setBackgroundColor(p.paper);
+
+    PosterSceneFX.drawPaperBackdrop(this, {
+      top: TOP,
+      bottom: GAME_HEIGHT - 34,
+      depth: -35,
+      seam: false,
+      grid: true,
+      gridStep: 40,
+      grainDensity: 260,
+      seed: 0x4521,
+    });
+
+    PosterSceneFX.drawAxisStripData(this, {
+      top: TOP + 6,
+      bottom: GAME_HEIGHT - 38,
+      depth: -8,
+      leftAlpha: 0.45,
+      rightAlpha: 0.4,
+    });
+
+    PosterSceneFX.drawPosterHudFrame(this, {
+      title: 'ASTEROIDS // VECTOR PURGE',
+      subtitle: 'NODE 72 · CX4024 · 1979',
+      barTop: TOP - 4,
+      barBottom: GAME_HEIGHT - 36,
+    });
+
+    const cx = GAME_WIDTH / 2;
+    const cy = TOP + 225;
+    // Halftone field as the centerpiece rift backdrop.
+    this._modHalftone = PosterSceneFX.drawHalftoneField(this, cx, cy, 110, {
+      rings: 10,
+      depth: -22,
+      color: p.ink,
+      accentColor: p.cyan,
+      alpha: 0.45,
+    });
+    // Concentric ring portal centerpiece — replaces additive cyan core.
+    this._modRift = PosterSceneFX.drawPortalRings(this, cx, cy, 64, { depth: -12 });
+    this._modRiftRot = 0;
+
+    // Coordinate stamp tucked into the upper-left for printed-page feel.
+    PosterSceneFX.drawCoordinateBlock(this, 24, TOP + 36, {
+      label: 'SECTOR 7G',
+      coord: '12.4 N  45.7 E',
+      node: '72',
+      depth: -2,
+    });
+  }
+
   createShip() {
     const cx = GAME_WIDTH / 2;
     const cy = TOP + (GAME_HEIGHT - TOP) / 2;
+
+    if (this.modernist) {
+      const roles = this.visualStyle.roles;
+      this.shipGlow = null;
+      const g = this.add.graphics().setDepth(12);
+      g.lineStyle(1.4, roles.player, 1);
+      g.beginPath();
+      g.moveTo(12, 0);
+      g.lineTo(-8, -7);
+      g.lineTo(-4, 0);
+      g.lineTo(-8, 7);
+      g.closePath();
+      g.strokePath();
+      g.setPosition(cx, cy);
+      this.ship = g;
+      this.ship.rotation = -Math.PI / 2;
+      return;
+    }
 
     this.shipGlow = this.add.circle(cx, cy, 22, COLORS.NEON_CYAN, 0.16)
       .setDepth(8)
@@ -156,7 +232,22 @@ export class AsteroidsScene extends BaseGameScene {
     const speed = Phaser.Math.Between(cfg.minSpd, cfg.maxSpd);
 
     let obj;
-    if (this.textures.exists(cfg.texture)) {
+    if (this.modernist) {
+      // Vector wireframe polygon — Atari 1979's actual graphics language.
+      const roles = this.visualStyle.roles;
+      const p = this.palette;
+      const verts = this._modAsteroidVerts(cfg.radius);
+      const g = this.add.graphics();
+      g.lineStyle(1.4, isPortal ? p.vermilion : roles.enemy, isPortal ? 1 : 0.9);
+      g.beginPath();
+      g.moveTo(verts[0].x, verts[0].y);
+      for (let i = 1; i < verts.length; i++) g.lineTo(verts[i].x, verts[i].y);
+      g.closePath();
+      g.strokePath();
+      g.setPosition(x, y);
+      g.setData('radius', cfg.radius);
+      obj = g;
+    } else if (this.textures.exists(cfg.texture)) {
       obj = this.add.sprite(x, y, cfg.texture);
     } else {
       obj = this.add.circle(x, y, cfg.radius, COLORS.WHITE);
@@ -172,8 +263,11 @@ export class AsteroidsScene extends BaseGameScene {
 
     obj.rotation = Math.random() * Math.PI * 2;
     obj.setData('rotSpeed', (Math.random() - 0.5) * 2);
-    obj.setDepth(10).setBlendMode(Phaser.BlendModes.ADD);
-    obj.setTint(isPortal ? COLORS.NEON_MAGENTA : COLORS.NEON_PURPLE);
+    obj.setDepth(10);
+    if (!this.modernist) {
+      obj.setBlendMode(Phaser.BlendModes.ADD);
+      obj.setTint(isPortal ? COLORS.NEON_MAGENTA : COLORS.NEON_PURPLE);
+    }
     this.decorateAsteroid(obj, cfg, isPortal);
 
     if (isPortal) {
@@ -193,7 +287,7 @@ export class AsteroidsScene extends BaseGameScene {
         repeat: -1,
       });
       obj.setData('origColor', true);
-      if (!this.textures.exists(cfg.texture)) {
+      if (!this.modernist && !this.textures.exists(cfg.texture)) {
         obj.setStrokeStyle(2, COLORS.PORTAL_GLOW);
       }
     }
@@ -202,7 +296,32 @@ export class AsteroidsScene extends BaseGameScene {
     return obj;
   }
 
+  _modAsteroidVerts(radius) {
+    const points = 10 + Math.floor(Math.random() * 3);
+    const verts = [];
+    for (let i = 0; i < points; i++) {
+      const a = (Math.PI * 2 * i) / points;
+      const r = radius * (0.75 + Math.random() * 0.35);
+      verts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+    }
+    return verts;
+  }
+
   decorateAsteroid(obj, cfg, isPortal) {
+    if (this.modernist) {
+      // Print rocks are pure outline — no glow, no additive cracks.
+      // For the portal rock, drop a small vermilion pip in the center so
+      // it still reads as "special" without a halo.
+      if (isPortal) {
+        const p = this.palette;
+        const pip = this.add.graphics().setDepth(11);
+        pip.fillStyle(p.vermilion, 1);
+        pip.fillCircle(0, 0, 2.5);
+        pip.setPosition(obj.x, obj.y);
+        obj.setData('pip', pip);
+      }
+      return;
+    }
     const glowColor = isPortal ? COLORS.NEON_MAGENTA : COLORS.NEON_PURPLE;
     const glow = this.add.circle(obj.x, obj.y, cfg.radius * 1.65, glowColor, isPortal ? 0.2 : 0.12)
       .setDepth(7)
@@ -235,7 +354,19 @@ export class AsteroidsScene extends BaseGameScene {
     const sx = fromLeft ? -20 : GAME_WIDTH + 20;
     const uy = Phaser.Math.Between(TOP + 30, GAME_HEIGHT - 60);
 
-    this.ufoSprite = this.add.rectangle(sx, uy, 22, 10, COLORS.RED);
+    if (this.modernist) {
+      const roles = this.visualStyle.roles;
+      const g = this.add.graphics();
+      g.lineStyle(1.4, roles.enemyAlt, 1);
+      g.strokeEllipse(0, 0, 24, 9);
+      g.lineBetween(-8, -1, -4, -6);
+      g.lineBetween(8, -1, 4, -6);
+      g.setPosition(sx, uy);
+      g.setDepth(11);
+      this.ufoSprite = g;
+    } else {
+      this.ufoSprite = this.add.rectangle(sx, uy, 22, 10, COLORS.RED);
+    }
     this.ufoSprite.setData('dir', fromLeft ? 1 : -1);
     ArcadeFX.callout(this, 'UFO INBOUND', GAME_WIDTH / 2, uy - 16, {
       color: COLORS.NEON_RED,
@@ -252,6 +383,7 @@ export class AsteroidsScene extends BaseGameScene {
 
   update(time, delta) {
     super.update(time, delta);
+    if (this.modernist) this._updateModernistArena(delta);
     if (!this.playerAlive) return;
 
     const dt = delta / 1000;
@@ -333,6 +465,31 @@ export class AsteroidsScene extends BaseGameScene {
     const bx = this.ship.x - Math.cos(this.ship.rotation) * 16;
     const by = this.ship.y - Math.sin(this.ship.rotation) * 16;
 
+    if (this.modernist) {
+      // Print thrust: 1-3 short ink hash lines flicking back from the ship.
+      const p = this.palette;
+      const baseAngle = this.ship.rotation + Math.PI;
+      const segs = 1 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < segs; i++) {
+        const ang = baseAngle + (Math.random() - 0.5) * 0.45;
+        const len = 6 + Math.random() * 6;
+        const g = this.add.graphics().setDepth(13);
+        const useAccent = i === 0;
+        g.lineStyle(1, useAccent ? p.vermilion : p.ink, 0.8);
+        g.lineBetween(0, 0, Math.cos(ang) * len, Math.sin(ang) * len);
+        g.setPosition(bx, by);
+        this.tweens.add({
+          targets: g,
+          alpha: 0,
+          x: bx + Math.cos(ang) * len * 0.5,
+          y: by + Math.sin(ang) * len * 0.5,
+          duration: 160,
+          onComplete: () => g.destroy(),
+        });
+      }
+      return;
+    }
+
     // Alternating white/cyan flame
     const flameColor = Math.random() > 0.5 ? COLORS.WHITE : COLORS.NEON_CYAN;
     const flame = this.add.circle(bx, by, 5.5, flameColor, 0.95);
@@ -384,12 +541,18 @@ export class AsteroidsScene extends BaseGameScene {
     const ny = this.ship.y + Math.sin(angle) * 14;
 
     let bullet;
-    if (this.textures.exists('bullet')) {
+    if (this.modernist) {
+      // Solid 3x3 vermilion square — no additive, no trail glow.
+      const roles = this.visualStyle.roles;
+      bullet = this.add.rectangle(nx, ny, 3, 3, roles.projectile);
+      bullet.setDepth(14);
+    } else if (this.textures.exists('bullet')) {
       bullet = this.add.sprite(nx, ny, 'bullet');
+      bullet.setDepth(14).setBlendMode(Phaser.BlendModes.ADD);
     } else {
       bullet = this.add.circle(nx, ny, 2.5, COLORS.CYAN);
+      bullet.setDepth(14).setBlendMode(Phaser.BlendModes.ADD);
     }
-    bullet.setDepth(14).setBlendMode(Phaser.BlendModes.ADD);
 
     bullet.setData('vx', Math.cos(angle) * BULLET_SPEED + this.shipVx);
     bullet.setData('vy', Math.sin(angle) * BULLET_SPEED + this.shipVy);
@@ -464,6 +627,7 @@ export class AsteroidsScene extends BaseGameScene {
   syncAsteroidVisuals(a) {
     const glow = a.getData('glow');
     const cracks = a.getData('cracks');
+    const pip = a.getData('pip');
     if (glow) {
       glow.setPosition(a.x, a.y);
       glow.setScale(1 + Math.sin(this.time.now * 0.006 + a.x) * 0.08);
@@ -471,6 +635,9 @@ export class AsteroidsScene extends BaseGameScene {
     if (cracks) {
       cracks.setPosition(a.x, a.y);
       cracks.setRotation(a.rotation);
+    }
+    if (pip) {
+      pip.setPosition(a.x, a.y);
     }
   }
 
@@ -560,6 +727,8 @@ export class AsteroidsScene extends BaseGameScene {
 
     if (glow) glow.destroy();
     if (cracks) cracks.destroy();
+    const pip = a.getData('pip');
+    if (pip) pip.destroy();
     a.destroy();
     this.asteroids.splice(asteroidIndex, 1);
 
@@ -709,6 +878,18 @@ export class AsteroidsScene extends BaseGameScene {
       size: 7,
       shape: 'circle',
     });
+  }
+
+  _updateModernistArena(delta) {
+    if (this._modRift) {
+      this._modRiftRot = (this._modRiftRot || 0) + delta * 0.00035;
+      const pulse = 1 + Math.sin(this.time.now * 0.0024) * 0.06;
+      this._modRift.draw(this._modRiftRot, pulse);
+    }
+    if (this._modHalftone) {
+      const breathe = 1 + Math.sin(this.time.now * 0.0018) * 0.04;
+      this._modHalftone.draw(breathe, 0);
+    }
   }
 
   shutdown() {

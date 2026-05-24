@@ -5,6 +5,7 @@ import SFX from '../core/SFXManager.js';
 import BGM from '../core/AudioManager.js';
 import NeonGlow from '../vfx/NeonGlow.js';
 import AudioBackground from '../vfx/AudioBackground.js';
+import { getVisualStyle, isModernistStyle } from '../core/VisualStyle.js';
 
 export class VictoryScene extends Phaser.Scene {
   constructor() {
@@ -12,6 +13,9 @@ export class VictoryScene extends Phaser.Scene {
   }
 
   create() {
+    this.visualStyle = getVisualStyle();
+    this.palette = this.visualStyle.palette;
+    this.modernist = isModernistStyle();
     try { this.scene.stop('HUDScene'); } catch (_) {}
     try { this.scene.stop('CRTOverlay'); } catch (_) {}
     this.scene.bringToTop();
@@ -19,28 +23,38 @@ export class VictoryScene extends Phaser.Scene {
     SFX.victory();
     BGM.playForScene(this, 'VictoryScene');
     this.cameras.main.fadeIn(500);
-    this.cameras.main.setBackgroundColor(COLORS.BG_DARK);
+    this.cameras.main.setBackgroundColor(this.palette.terminal);
     AudioBackground.setScene('VictoryScene');
 
     const title = this.add.text(GAME_WIDTH / 2, 130, 'SYSTEM RESTORED', {
-      fontSize: '40px', fontFamily: 'monospace', color: '#39ff14',
+      fontSize: '40px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.green : '#39ff14',
     }).setOrigin(0.5);
-    NeonGlow.applyTextGlow(this, title, COLORS.NEON_GREEN);
+    if (!this.modernist) NeonGlow.applyTextGlow(this, title, COLORS.NEON_GREEN);
 
     this.add.text(GAME_WIDTH / 2, 195, 'The rift has been sealed. All sectors stable.', {
-      fontSize: '14px', fontFamily: 'monospace', color: '#00f0ff',
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.paper : '#00f0ff',
     }).setOrigin(0.5);
 
     this.add.text(GAME_WIDTH / 2, 270, `FINAL SCORE: ${String(GameManager.state.totalScore).padStart(7, '0')}`, {
-      fontSize: '24px', fontFamily: 'monospace', color: '#ffffff',
+      fontSize: '24px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.paper : '#ffffff',
     }).setOrigin(0.5);
 
     this.add.text(GAME_WIDTH / 2, 315, `PORTALS: ${GameManager.state.gamesCompleted.length}`, {
-      fontSize: '14px', fontFamily: 'monospace', color: '#555577',
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.muted : '#555577',
     }).setOrigin(0.5);
 
     for (let i = 0; i < 60; i++) {
-      const color = [COLORS.NEON_CYAN, COLORS.NEON_MAGENTA, COLORS.NEON_GREEN, COLORS.NEON_PURPLE][i % 4];
+      const color = this.modernist
+        ? [this.palette.cyan, this.palette.vermilion, this.palette.green, this.palette.paper][i % 4]
+        : [COLORS.NEON_CYAN, COLORS.NEON_MAGENTA, COLORS.NEON_GREEN, COLORS.NEON_PURPLE][i % 4];
       const p = this.add.circle(
         GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40,
         Math.random() * 2.5 + 0.5,
@@ -60,10 +74,12 @@ export class VictoryScene extends Phaser.Scene {
     }
 
     const menuBtn = this.add.text(GAME_WIDTH / 2, 430, '> RETURN TO MENU', {
-      fontSize: '18px', fontFamily: 'monospace', color: '#ffffff',
+      fontSize: '18px',
+      fontFamily: 'monospace',
+      color: this.modernist ? this.visualStyle.css.paper : '#ffffff',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    menuBtn.on('pointerover', () => menuBtn.setColor('#00f0ff'));
-    menuBtn.on('pointerout', () => menuBtn.setColor('#ffffff'));
+    menuBtn.on('pointerover', () => menuBtn.setColor(this.modernist ? this.visualStyle.css.vermilion : '#00f0ff'));
+    menuBtn.on('pointerout', () => menuBtn.setColor(this.modernist ? this.visualStyle.css.paper : '#ffffff'));
     menuBtn.on('pointerdown', () => {
       this.scene.stop('HUDScene');
       this.scene.stop('CRTOverlay');

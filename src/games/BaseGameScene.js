@@ -11,6 +11,7 @@ import AudioReactive from '../core/AudioReactiveSystem.js';
 import NeonGlow from '../vfx/NeonGlow.js';
 import GlitchEffect from '../vfx/GlitchEffect.js';
 import AudioBackground from '../vfx/AudioBackground.js';
+import { cssColor, getVisualStyle, isModernistStyle } from '../core/VisualStyle.js';
 
 export class BaseGameScene extends Phaser.Scene {
   constructor(key, scoreKey) {
@@ -20,7 +21,10 @@ export class BaseGameScene extends Phaser.Scene {
   }
 
   create() {
-    this.cameras.main.setBackgroundColor(COLORS.BG_DARK);
+    this.visualStyle = getVisualStyle();
+    this.palette = this.visualStyle.palette;
+    this.modernist = isModernistStyle();
+    this.cameras.main.setBackgroundColor(this.palette.terminal);
     AudioBackground.setScene(this.sceneKey, GameManager.state.mode);
     console.log('[AudioReactive] BaseGameScene create', this.sceneKey);
 
@@ -81,37 +85,56 @@ export class BaseGameScene extends Phaser.Scene {
 
   drawGameGrid() {
     this._gridGfx = this.add.graphics().setDepth(0);
-    this._gridAlpha = 0.12;
-    this._drawGridLines(0.12);
+    this._gridAlpha = this.modernist ? 0.18 : 0.12;
+    this._drawGridLines(this._gridAlpha);
   }
 
   _drawGridLines(alpha) {
     const g = this._gridGfx;
     g.clear();
-    const dashLen = 4;
-    const gapLen = 6;
-    g.lineStyle(1, COLORS.GRID_LINE, alpha);
-    for (let x = 0; x < GAME_WIDTH; x += 40) {
+    const dashLen = this.modernist ? 6 : 4;
+    const gapLen = this.modernist ? 10 : 6;
+    const gridColor = this.modernist ? this.palette.faint : COLORS.GRID_LINE;
+    const majorColor = this.modernist ? this.palette.paper : COLORS.GRID_LINE;
+    const step = this.modernist ? 32 : 40;
+
+    if (this.modernist) {
+      g.fillStyle(this.palette.paper, 0.025);
+      g.fillRect(0, 32, GAME_WIDTH, GAME_HEIGHT - 32);
+      g.lineStyle(1, this.palette.vermilion, 0.38);
+      g.lineBetween(0, 32, GAME_WIDTH, 32);
+    }
+
+    g.lineStyle(1, gridColor, alpha);
+    for (let x = 0; x < GAME_WIDTH; x += step) {
       for (let y = 32; y < GAME_HEIGHT; y += dashLen + gapLen) {
         const endY = Math.min(y + dashLen, GAME_HEIGHT);
         g.strokeLineShape(new Phaser.Geom.Line(x, y, x, endY));
       }
     }
-    for (let y = 32; y < GAME_HEIGHT; y += 40) {
+    for (let y = 32; y < GAME_HEIGHT; y += step) {
       for (let x = 0; x < GAME_WIDTH; x += dashLen + gapLen) {
         const endX = Math.min(x + dashLen, GAME_WIDTH);
         g.strokeLineShape(new Phaser.Geom.Line(x, y, endX, y));
       }
+    }
+
+    if (this.modernist) {
+      g.lineStyle(1, majorColor, alpha * 1.3);
+      g.strokeRect(10, 42, GAME_WIDTH - 20, GAME_HEIGHT - 54);
+      g.lineStyle(1, this.palette.cyan, alpha * 1.15);
+      g.lineBetween(GAME_WIDTH / 2, 42, GAME_WIDTH / 2, GAME_HEIGHT - 12);
+      g.lineBetween(10, GAME_HEIGHT / 2, GAME_WIDTH - 10, GAME_HEIGHT / 2);
     }
   }
 
   _initDataStream() {
     const cfg = CYBER_GRID[this.sceneKey];
     if (!cfg) return;
-    const density = cfg.streamDensity || 0.3;
-    const color = '#' + (cfg.streamColor || COLORS.NEON_CYAN).toString(16).padStart(6, '0');
+    const density = this.modernist ? Math.min(0.22, cfg.streamDensity || 0.3) : (cfg.streamDensity || 0.3);
+    const color = this.modernist ? cssColor(this.palette.cyan) : '#' + (cfg.streamColor || COLORS.NEON_CYAN).toString(16).padStart(6, '0');
     const colCount = Math.floor(density * 15);
-    const chars = '01';
+    const chars = this.modernist ? '01+-' : '01';
 
     this._dataStreamItems = [];
     for (let i = 0; i < colCount; i++) {
@@ -123,7 +146,7 @@ export class BaseGameScene extends Phaser.Scene {
         const a = (0.06 + (1 - j / len) * 0.08) * density;
         const txt = this.add.text(cx, -20 - j * 14, ch, {
           fontSize: '10px', fontFamily: 'monospace', color,
-        }).setAlpha(a).setDepth(1);
+        }).setAlpha(this.modernist ? a * 0.7 : a).setDepth(1);
         this._dataStreamItems.push({ obj: txt, speed, startX: cx });
         this.tweens.add({
           targets: txt,

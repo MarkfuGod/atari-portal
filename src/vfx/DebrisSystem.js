@@ -1,4 +1,18 @@
 import { COLORS } from '../config.js';
+import { isModernistStyle, getVisualStyle } from '../core/VisualStyle.js';
+
+function drawTrianglePath(g, size) {
+  const r = size * 0.9;
+  const a1 = -Math.PI / 2;
+  const a2 = a1 + (Math.PI * 2) / 3;
+  const a3 = a1 + (Math.PI * 4) / 3;
+  g.beginPath();
+  g.moveTo(Math.cos(a1) * r, Math.sin(a1) * r);
+  g.lineTo(Math.cos(a2) * r, Math.sin(a2) * r);
+  g.lineTo(Math.cos(a3) * r, Math.sin(a3) * r);
+  g.closePath();
+  g.strokePath();
+}
 
 const INTENSITY_PRESETS = {
   light: { count: 5, size: 4, spread: 40, duration: 350, shake: 0 },
@@ -17,6 +31,9 @@ const DebrisSystem = {
     const depth = opts.depth ?? 45;
     const gravity = opts.gravity ?? 80;
 
+    const modernist = isModernistStyle();
+    const modPalette = modernist ? getVisualStyle().palette : null;
+
     for (let i = 0; i < count; i++) {
       const c = colors[i % colors.length];
       const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.6;
@@ -27,12 +44,20 @@ const DebrisSystem = {
       const g = scene.add.graphics();
       g.setPosition(x, y);
       g.setDepth(depth);
-      g.setBlendMode(Phaser.BlendModes.ADD);
 
-      g.fillStyle(c, 0.9);
-      g.fillRect(-w / 2, -h / 2, w, h);
-      g.lineStyle(1, 0xffffff, 0.5);
-      g.strokeRect(-w / 2, -h / 2, w, h);
+      if (modernist) {
+        // Wireframe triangle shards in ink with occasional vermilion accent —
+        // looks like a printer's tear pattern, no additive bloom.
+        const useAccent = i % 4 === 0;
+        g.lineStyle(1, useAccent ? modPalette.vermilion : modPalette.ink, 0.85);
+        drawTrianglePath(g, Math.max(w, h));
+      } else {
+        g.setBlendMode(Phaser.BlendModes.ADD);
+        g.fillStyle(c, 0.9);
+        g.fillRect(-w / 2, -h / 2, w, h);
+        g.lineStyle(1, 0xffffff, 0.5);
+        g.strokeRect(-w / 2, -h / 2, w, h);
+      }
 
       const tx = x + Math.cos(angle) * dist;
       const ty = y + Math.sin(angle) * dist + gravity * (duration / 1000);
@@ -62,6 +87,9 @@ const DebrisSystem = {
     const convergeX = opts.convergeX ?? x;
     const convergeY = opts.convergeY ?? (y - riseHeight);
 
+    const modernist = isModernistStyle();
+    const modPalette = modernist ? getVisualStyle().palette : null;
+
     for (let i = 0; i < count; i++) {
       const c = colors[i % colors.length];
       const startX = x + (Math.random() - 0.5) * width;
@@ -71,11 +99,16 @@ const DebrisSystem = {
       const g = scene.add.graphics();
       g.setPosition(startX, startY);
       g.setDepth(depth);
-      g.setBlendMode(Phaser.BlendModes.ADD);
-      g.fillStyle(c, 0.8);
-      g.fillCircle(0, 0, sz);
-      g.fillStyle(0xffffff, 0.6);
-      g.fillCircle(0, 0, sz * 0.4);
+      if (modernist) {
+        g.fillStyle(modPalette.ink, 0.7);
+        g.fillCircle(0, 0, sz * 0.7);
+      } else {
+        g.setBlendMode(Phaser.BlendModes.ADD);
+        g.fillStyle(c, 0.8);
+        g.fillCircle(0, 0, sz);
+        g.fillStyle(0xffffff, 0.6);
+        g.fillCircle(0, 0, sz * 0.4);
+      }
 
       const midX = convergeX + (Math.random() - 0.5) * 20;
       const midY = convergeY + (Math.random() - 0.5) * 15;
@@ -114,14 +147,24 @@ const DebrisSystem = {
       scene.cameras.main.shake(preset.duration * 0.6, preset.shake);
     }
 
+    const modernist = isModernistStyle();
     const flash = scene.add.graphics();
     flash.setPosition(x, y);
     flash.setDepth(50);
-    flash.setBlendMode(Phaser.BlendModes.ADD);
-    flash.fillStyle(0xffffff, 0.6);
-    flash.fillCircle(0, 0, preset.spread * 0.4);
-    flash.fillStyle(colors[0], 0.3);
-    flash.fillCircle(0, 0, preset.spread * 0.7);
+
+    if (modernist) {
+      const p = getVisualStyle().palette;
+      flash.lineStyle(1.5, p.vermilion, 0.85);
+      flash.strokeCircle(0, 0, preset.spread * 0.45);
+      flash.lineStyle(1, p.ink, 0.55);
+      flash.strokeCircle(0, 0, preset.spread * 0.7);
+    } else {
+      flash.setBlendMode(Phaser.BlendModes.ADD);
+      flash.fillStyle(0xffffff, 0.6);
+      flash.fillCircle(0, 0, preset.spread * 0.4);
+      flash.fillStyle(colors[0], 0.3);
+      flash.fillCircle(0, 0, preset.spread * 0.7);
+    }
 
     scene.tweens.add({
       targets: flash,

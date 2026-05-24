@@ -1,4 +1,5 @@
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../config.js';
+import { isModernistStyle, getVisualStyle } from '../core/VisualStyle.js';
 
 const GlitchEffect = {
   screenTear(scene, duration = 500) {
@@ -6,20 +7,29 @@ const GlitchEffect = {
     const sliceCount = 12;
     const sliceH = Math.ceil(GAME_HEIGHT / sliceCount);
 
+    const modernist = isModernistStyle();
+    const palette = modernist ? getVisualStyle().palette : null;
+    const modColors = modernist
+      ? [palette.vermilion, palette.ink, palette.cyan]
+      : null;
+
     for (let i = 0; i < sliceCount; i++) {
+      const color = modernist
+        ? modColors[i % 3]
+        : [COLORS.NEON_CYAN, COLORS.NEON_MAGENTA, COLORS.NEON_PURPLE][i % 3];
       const rect = scene.add.rectangle(
         GAME_WIDTH / 2 + (Math.random() - 0.5) * 30,
         i * sliceH + sliceH / 2,
         GAME_WIDTH + 20, sliceH,
-        [COLORS.NEON_CYAN, COLORS.NEON_MAGENTA, COLORS.NEON_PURPLE][i % 3],
-        0.06
+        color,
+        modernist ? 0.04 : 0.06
       ).setDepth(8000);
       slices.push(rect);
 
       scene.tweens.add({
         targets: rect,
         x: GAME_WIDTH / 2 + (Math.random() - 0.5) * 60,
-        alpha: { from: 0.08, to: 0 },
+        alpha: { from: modernist ? 0.05 : 0.08, to: 0 },
         duration: duration,
         ease: 'Stepped',
         easeParams: [4],
@@ -30,6 +40,32 @@ const GlitchEffect = {
   },
 
   chromaticAberration(scene, duration = 400) {
+    if (isModernistStyle()) {
+      // Print misregistration: stamp three offset color plates with low
+      // alpha so the page looks like an off-register screen print. No
+      // additive blending — modernist scenes use a paper backdrop where
+      // additive bloom reads as broken, not glitchy.
+      const p = getVisualStyle().palette;
+      const plates = [
+        { dx: -2, dy: -1, color: p.vermilion },
+        { dx:  2, dy:  1, color: p.cyan },
+        { dx:  0, dy:  2, color: p.ink },
+      ];
+      const overlays = plates.map(({ dx, dy, color }) => scene.add.rectangle(
+        GAME_WIDTH / 2 + dx, GAME_HEIGHT / 2 + dy,
+        GAME_WIDTH, GAME_HEIGHT,
+        color, 0.07
+      ).setDepth(8001));
+
+      scene.tweens.add({
+        targets: overlays,
+        alpha: 0,
+        duration: duration,
+        onComplete: () => overlays.forEach(o => o.destroy()),
+      });
+      return;
+    }
+
     const overlay1 = scene.add.rectangle(
       GAME_WIDTH / 2 - 3, GAME_HEIGHT / 2,
       GAME_WIDTH, GAME_HEIGHT,
